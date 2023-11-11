@@ -1,0 +1,372 @@
+use std::{
+    collections::HashSet,
+    marker::PhantomData,
+    ops::{Index, IndexMut},
+};
+
+use bevy::{
+    prelude::*,
+    tasks::{AsyncComputeTaskPool, Task},
+};
+use futures_lite::future;
+use pathfinding::undirected::connected_components;
+use rand::{seq::IteratorRandom, Rng};
+
+// TODO Make this a generic on the plugin or otherwise configurable
+pub const GRID_SIZE: usize = 100;
+pub const TILE_SIZE: f32 = 9.0;
+
+#[derive(Resource)]
+pub struct Grid<T> {
+    pub entities: [[Option<Vec<Entity>>; GRID_SIZE]; GRID_SIZE],
+    _marker: PhantomData<T>,
+}
+
+#[derive(Resource)]
+pub struct ConnectedComponents<T> {
+    pub components: Vec<HashSet<GridLocation>>,
+    _marker: PhantomData<T>,
+}
+
+#[derive(Component, Eq, PartialEq, Hash, Clone, Debug, Deref, DerefMut)]
+pub struct GridLocation(pub IVec2);
+
+/// Entities with this component will have their translation locked to the grid
+#[derive(Component)]
+pub struct LockToGrid;
+
+#[derive(Event)]
+pub struct DirtyGridEvent<T>(pub GridLocation, PhantomData<T>);
+
+#[derive(Default)]
+pub struct GridPlugin<T> {
+    _marker: PhantomData<T>,
+}
+
+impl<T: Component> Plugin for GridPlugin<T> {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<Grid<T>>()
+            .init_resource::<ConnectedComponents<T>>()
+            .add_systems(
+                Update,
+                (lock_to_grid::<T>, update_connected_components::<T>),
+            )
+            .add_event::<DirtyGridEvent<T>>()
+            // TODO move_on_grid / GridLocation change detection
+            .add_systems(Startup, first_dirty_event::<T>)
+            .add_systems(
+                PreUpdate,
+                (
+                    add_to_grid::<T>,
+                    update_in_grid::<T>,
+                    remove_from_grid::<T>,
+                    resolve_connected_components::<T>,
+                ),
+            );
+    }
+}
+
+// Could change detect
+fn lock_to_grid<T: Component>(
+    grid: Res<Grid<T>>,
+    mut positions: Query<&mut Transform, (With<LockToGrid>, With<T>)>,
+) {
+    for (entity, location) in grid.iter() {
+        if let Ok(mut position) = positions.get_mut(entity) {
+            position.translation.x = location.x as f32 * TILE_SIZE;
+            position.translation.y = location.y as f32 * TILE_SIZE;
+        }
+    }
+}
+
+// Forces some sane initializations of connected components
+fn first_dirty_event<T: Component>(mut dirty: EventWriter<DirtyGridEvent<T>>) {
+    dirty.send(DirtyGridEvent::<T>(GridLocation::new(0, 0), PhantomData));
+}
+
+#[derive(Component)]
+struct ConnectedTask<T> {
+    task: Task<ConnectedComponents<T>>,
+}
+
+fn resolve_connected_components<T: Component>(
+    mut commands: Commands,
+    mut connected: ResMut<ConnectedComponents<T>>,
+    // Should maybe be a resource?
+    mut tasks: Query<(Entity, &mut ConnectedTask<T>)>,
+) {
+    for (task_entity, mut task) in &mut tasks {
+        if let Some(result) = future::block_on(future::poll_once(&mut task.task)) {
+            //TODO is there a way to make bevy auto remove these or not panic or something
+            commands.entity(task_entity).despawn_recursive();
+            *connected = result;
+        }
+    }
+}
+
+fn update_connected_components<T: Component>(
+    mut commands: Commands,
+    grid: Res<Grid<T>>,
+    mut events: EventReader<DirtyGridEvent<T>>,
+    // Should maybe be a resource?
+    current_tasks: Query<Entity, With<ConnectedTask<T>>>,
+) {
+    if !events.is_empty() {
+        events.clear();
+        for task in &current_tasks {
+            commands.entity(task).despawn_recursive();
+        }
+
+        let thread_pool = AsyncComputeTaskPool::get();
+        let grid = Box::new(grid.clone());
+
+        let task = thread_pool.spawn(async move {
+            let starts = all_points()
+                .into_iter()
+                .filter(|point| !grid.occupied(point))
+                .collect::<Vec<_>>();
+
+            ConnectedComponents::<T> {
+                components: connected_components::connected_components(&starts, |p| {
+                    neumann_neighbors(&grid, p)
+                }),
+                ..default()
+            }
+        });
+
+        commands.spawn(ConnectedTask { task });
+    }
+}
+
+fn remove_from_grid<T: Component>(
+    mut grid: ResMut<Grid<T>>,
+    mut query: RemovedComponents<T>,
+    mut dirty: EventWriter<DirtyGridEvent<T>>,
+) {
+    for removed_entity in query.read() {
+        // Search for entity
+        let removed = grid.iter().find(|(entity, _)| *entity == removed_entity);
+        if let Some((_, location)) = removed {
+            dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+            grid[&location] = None;
+        }
+    }
+}
+
+fn update_in_grid<T: Component>(
+    mut grid: ResMut<Grid<T>>,
+    query: Query<(Entity, &GridLocation), Changed<GridLocation>>,
+    mut dirty: EventWriter<DirtyGridEvent<T>>,
+) {
+    for (entity, location) in &query {
+        if let Some(previous) = grid.find_in_grid(entity) {
+            grid[&previous] = None;
+        }
+        if Grid::<()>::valid_index(location) {
+            if let Some(ref mut existing) = &mut grid[location] {
+                if !existing.contains(&entity) {
+                    dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+                    existing.push(entity);
+                }
+            } else {
+                dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+                grid[location] = Some(vec![entity]);
+            }
+        }
+    }
+}
+
+fn add_to_grid<T: Component>(
+    mut grid: ResMut<Grid<T>>,
+    query: Query<(Entity, &GridLocation), Added<T>>,
+    mut dirty: EventWriter<DirtyGridEvent<T>>,
+) {
+    for (entity, location) in &query {
+        if Grid::<()>::valid_index(location) {
+            if let Some(ref mut existing) = &mut grid[location] {
+                if !existing.contains(&entity) {
+                    dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+                    existing.push(entity);
+                }
+            } else {
+                dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+                grid[location] = Some(vec![entity]);
+            }
+        }
+    }
+}
+
+fn all_points() -> Vec<GridLocation> {
+    (0..GRID_SIZE)
+        .flat_map(|x| (0..GRID_SIZE).map(move |y| GridLocation::new(x as u32, y as u32)))
+        .collect()
+}
+
+impl<T> Default for ConnectedComponents<T> {
+    fn default() -> Self {
+        Self {
+            components: Default::default(),
+            _marker: Default::default(),
+        }
+    }
+}
+
+impl<T> Clone for Grid<T> {
+    fn clone(&self) -> Self {
+        Self {
+            entities: self.entities.clone(),
+            _marker: self._marker,
+        }
+    }
+}
+
+// https://github.com/rust-lang/rust/issues/44796#issuecomment-967747810
+const INIT: Option<Vec<Entity>> = None;
+const INIT_INNER: [Option<Vec<Entity>>; GRID_SIZE] = [INIT; GRID_SIZE];
+
+impl<T> Default for Grid<T> {
+    fn default() -> Self {
+        Self {
+            entities: [INIT_INNER; GRID_SIZE],
+            _marker: Default::default(),
+        }
+    }
+}
+
+impl GridLocation {
+    pub fn new(x: u32, y: u32) -> Self {
+        GridLocation(IVec2::new(x as i32, y as i32))
+    }
+
+    pub fn from_world_position(position: Vec2) -> Option<Self> {
+        let position = position + Vec2::splat(0.5);
+        let location = GridLocation(IVec2::new(position.x as i32, position.y as i32));
+        if Grid::<()>::valid_index(&location) {
+            Some(location)
+        } else {
+            None
+        }
+    }
+}
+
+impl From<IVec2> for GridLocation {
+    fn from(value: IVec2) -> Self {
+        GridLocation(value)
+    }
+}
+
+impl<T> Grid<T> {
+    pub fn occupied(&self, location: &GridLocation) -> bool {
+        Grid::<T>::valid_index(location) && self[location].is_some()
+    }
+
+    pub fn valid_index(location: &GridLocation) -> bool {
+        location.x >= 0
+            && location.y >= 0
+            && location.x < GRID_SIZE as i32
+            && location.y < GRID_SIZE as i32
+    }
+
+    pub fn find_in_grid(&self, to_find: Entity) -> Option<GridLocation> {
+        for (entity, location) in self.iter() {
+            if entity == to_find {
+                return Some(location);
+            }
+        }
+        None
+    }
+}
+
+impl<T> Grid<T> {
+    pub fn iter(&self) -> impl Iterator<Item = (Entity, GridLocation)> + '_ {
+        self.entities
+            .iter()
+            .flatten()
+            .enumerate()
+            .filter_map(|(i, cell)| {
+                cell.as_ref().map(|entities| {
+                    entities.iter().map(move |&entity| {
+                        (
+                            entity,
+                            GridLocation::new(
+                                i as u32 / GRID_SIZE as u32,
+                                i as u32 % GRID_SIZE as u32,
+                            ),
+                        )
+                    })
+                })
+            })
+            .flatten()
+    }
+}
+
+impl<T> Index<&GridLocation> for Grid<T> {
+    type Output = Option<Vec<Entity>>;
+
+    fn index(&self, index: &GridLocation) -> &Self::Output {
+        &self.entities[index.x as usize][index.y as usize]
+    }
+}
+
+impl<T> IndexMut<&GridLocation> for Grid<T> {
+    fn index_mut(&mut self, index: &GridLocation) -> &mut Self::Output {
+        &mut self.entities[index.x as usize][index.y as usize]
+    }
+}
+
+impl<T> ConnectedComponents<T> {
+    pub fn point_to_component(&self, start: &GridLocation) -> Option<&HashSet<GridLocation>> {
+        self.components
+            .iter()
+            .find(|component| component.contains(start))
+    }
+
+    pub fn is_in_same_component(&self, start: &GridLocation, end: &GridLocation) -> bool {
+        self.point_to_component(start) == self.point_to_component(end)
+    }
+
+    pub fn get_random_point_in_same_component<R>(
+        &self,
+        start: &GridLocation,
+        rng: &mut R,
+    ) -> Option<GridLocation>
+    where
+        R: Rng + ?Sized,
+    {
+        self.point_to_component(start)
+            .and_then(|component| component.iter().choose(rng).cloned())
+    }
+}
+
+pub fn neumann_neighbors<T>(grid: &Grid<T>, location: &GridLocation) -> Vec<GridLocation> {
+    let (x, y) = (location.x as u32, location.y as u32);
+
+    let mut successors = Vec::new();
+    if let Some(left) = x.checked_sub(1) {
+        let location = GridLocation::new(left, y);
+        if !grid.occupied(&location) {
+            successors.push(location);
+        }
+    }
+    if let Some(down) = y.checked_sub(1) {
+        let location = GridLocation::new(x, down);
+        if !grid.occupied(&location) {
+            successors.push(location);
+        }
+    }
+    if x + 1 < GRID_SIZE as u32 {
+        let right = x + 1;
+        let location = GridLocation::new(right, y);
+        if !grid.occupied(&location) {
+            successors.push(location);
+        }
+    }
+    if y + 1 < GRID_SIZE as u32 {
+        let up = y + 1;
+        let location = GridLocation::new(x, up);
+        if !grid.occupied(&location) {
+            successors.push(location);
+        }
+    }
+    successors
+}
