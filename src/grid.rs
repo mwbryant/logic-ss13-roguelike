@@ -29,7 +29,26 @@ pub struct ConnectedComponents<T> {
 }
 
 #[derive(Component, Eq, PartialEq, Hash, Clone, Debug, Deref, DerefMut)]
-pub struct GridLocation(pub IVec2);
+pub struct GridLocation(IVec2);
+
+#[derive(Debug)]
+pub enum GridLocationError {
+    InvalidLocation,
+}
+
+impl GridLocation {
+    pub fn get_location(&self) -> IVec2 {
+        self.0
+    }
+    pub fn try_set_location(&mut self, new_location: IVec2) -> Result<(), GridLocationError> {
+        if Grid::<()>::valid_index(&GridLocation(new_location)) {
+            self.0 = new_location;
+            Ok(())
+        } else {
+            Err(GridLocationError::InvalidLocation)
+        }
+    }
+}
 
 /// Entities with this component will have their translation locked to the grid
 #[derive(Component)]
@@ -66,10 +85,9 @@ impl<T: Component> Plugin for GridPlugin<T> {
     }
 }
 
-// Could change detect
 fn lock_to_grid<T: Component>(
     grid: Res<Grid<T>>,
-    mut positions: Query<&mut Transform, (With<LockToGrid>, With<T>)>,
+    mut positions: Query<&mut Transform, (With<LockToGrid>, With<T>, Changed<GridLocation>)>,
 ) {
     for (entity, location) in grid.iter() {
         if let Ok(mut position) = positions.get_mut(entity) {
@@ -153,26 +171,31 @@ fn remove_from_grid<T: Component>(
     }
 }
 
+impl<T> Grid<T> {
+    pub fn force_update(&mut self, entity: Entity, new_location: &GridLocation) {
+        if let Some(previous) = self.find_in_grid(entity) {
+            self[&previous] = None;
+        }
+        if Grid::<()>::valid_index(new_location) {
+            if let Some(ref mut existing) = &mut self[new_location] {
+                if !existing.contains(&entity) {
+                    existing.push(entity);
+                }
+            } else {
+                self[new_location] = Some(vec![entity]);
+            }
+        }
+    }
+}
+
 fn update_in_grid<T: Component>(
     mut grid: ResMut<Grid<T>>,
     query: Query<(Entity, &GridLocation), Changed<GridLocation>>,
     mut dirty: EventWriter<DirtyGridEvent<T>>,
 ) {
     for (entity, location) in &query {
-        if let Some(previous) = grid.find_in_grid(entity) {
-            grid[&previous] = None;
-        }
-        if Grid::<()>::valid_index(location) {
-            if let Some(ref mut existing) = &mut grid[location] {
-                if !existing.contains(&entity) {
-                    dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
-                    existing.push(entity);
-                }
-            } else {
-                dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
-                grid[location] = Some(vec![entity]);
-            }
-        }
+        grid.force_update(entity, location);
+        dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
     }
 }
 

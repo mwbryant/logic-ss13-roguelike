@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 # bevy = { version = "0.12", features = ["dynamic_linking"] }
 bevy = { version = "0.12"}
+bevy_turborand = "0.7.0"
 futures-lite = "2.0.1"
  pathfinding = "4.3.2"
  rand = "0.8.5"
