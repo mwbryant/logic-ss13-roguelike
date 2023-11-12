@@ -348,6 +348,7 @@ impl<T> IndexMut<&GridLocation> for Grid<T> {
 }
 
 impl<T> ConnectedComponents<T> {
+    #[allow(unused)]
     pub fn point_to_component(&self, start: &GridLocation) -> Option<&HashSet<GridLocation>> {
         self.components
             .iter()

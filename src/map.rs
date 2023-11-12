@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{prelude::*, render::camera::ScalingMode, utils::HashMap};
 
 use crate::grid::{GRID_SIZE_X, GRID_SIZE_Y, TILE_SIZE};
 
@@ -87,7 +87,11 @@ pub fn setup(
 
     // TODO hdpi?
     let mut camera = Camera2dBundle::default();
-    camera.projection.scale = 0.4;
+    // camera.projection.scale = 0.4;
+    camera.projection.scaling_mode = ScalingMode::Fixed {
+        width: 765.0,
+        height: 432.0,
+    };
     let center_x = (GRID_SIZE_X - 1) as f32 * TILE_SIZE / 2.0;
     let center_y = (GRID_SIZE_Y - 1) as f32 * TILE_SIZE / 2.0;
     camera.transform = Transform::from_xyz(center_x, center_y, 0.0);
