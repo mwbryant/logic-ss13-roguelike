@@ -13,12 +13,13 @@ use pathfinding::undirected::connected_components;
 use rand::{seq::IteratorRandom, Rng};
 
 // TODO Make this a generic on the plugin or otherwise configurable
-pub const GRID_SIZE: usize = 100;
+pub const GRID_SIZE_X: usize = 85;
+pub const GRID_SIZE_Y: usize = 48;
 pub const TILE_SIZE: f32 = 9.0;
 
 #[derive(Resource)]
 pub struct Grid<T> {
-    pub entities: [[Option<Vec<Entity>>; GRID_SIZE]; GRID_SIZE],
+    entities: [[Option<Vec<Entity>>; GRID_SIZE_Y]; GRID_SIZE_X],
     _marker: PhantomData<T>,
 }
 
@@ -77,7 +78,7 @@ impl<T: Component> Plugin for GridPlugin<T> {
                 PreUpdate,
                 (
                     add_to_grid::<T>,
-                    update_in_grid::<T>,
+                    update_in_grid::<T>.after(add_to_grid::<T>),
                     remove_from_grid::<T>,
                     resolve_connected_components::<T>,
                 ),
@@ -190,12 +191,19 @@ impl<T> Grid<T> {
 
 fn update_in_grid<T: Component>(
     mut grid: ResMut<Grid<T>>,
-    query: Query<(Entity, &GridLocation), Changed<GridLocation>>,
+    query: Query<(Entity, &GridLocation), (Changed<GridLocation>, With<T>)>,
     mut dirty: EventWriter<DirtyGridEvent<T>>,
 ) {
     for (entity, location) in &query {
-        grid.force_update(entity, location);
-        dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+        if Grid::<()>::valid_index(location)
+            && grid[location]
+                .as_ref()
+                .map(|vec| !vec.contains(&entity))
+                .unwrap_or(true)
+        {
+            grid.force_update(entity, location);
+            dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+        }
     }
 }
 
@@ -220,8 +228,8 @@ fn add_to_grid<T: Component>(
 }
 
 fn all_points() -> Vec<GridLocation> {
-    (0..GRID_SIZE)
-        .flat_map(|x| (0..GRID_SIZE).map(move |y| GridLocation::new(x as u32, y as u32)))
+    (0..GRID_SIZE_X)
+        .flat_map(|x| (0..GRID_SIZE_Y).map(move |y| GridLocation::new(x as u32, y as u32)))
         .collect()
 }
 
@@ -245,12 +253,12 @@ impl<T> Clone for Grid<T> {
 
 // https://github.com/rust-lang/rust/issues/44796#issuecomment-967747810
 const INIT: Option<Vec<Entity>> = None;
-const INIT_INNER: [Option<Vec<Entity>>; GRID_SIZE] = [INIT; GRID_SIZE];
+const INIT_INNER: [Option<Vec<Entity>>; GRID_SIZE_Y] = [INIT; GRID_SIZE_Y];
 
 impl<T> Default for Grid<T> {
     fn default() -> Self {
         Self {
-            entities: [INIT_INNER; GRID_SIZE],
+            entities: [INIT_INNER; GRID_SIZE_X],
             _marker: Default::default(),
         }
     }
@@ -261,6 +269,7 @@ impl GridLocation {
         GridLocation(IVec2::new(x as i32, y as i32))
     }
 
+    /*
     pub fn from_world_position(position: Vec2) -> Option<Self> {
         let position = position + Vec2::splat(0.5);
         let location = GridLocation(IVec2::new(position.x as i32, position.y as i32));
@@ -270,6 +279,7 @@ impl GridLocation {
             None
         }
     }
+    */
 }
 
 impl From<IVec2> for GridLocation {
@@ -286,8 +296,8 @@ impl<T> Grid<T> {
     pub fn valid_index(location: &GridLocation) -> bool {
         location.x >= 0
             && location.y >= 0
-            && location.x < GRID_SIZE as i32
-            && location.y < GRID_SIZE as i32
+            && location.x < GRID_SIZE_X as i32
+            && location.y < GRID_SIZE_Y as i32
     }
 
     pub fn find_in_grid(&self, to_find: Entity) -> Option<GridLocation> {
@@ -312,8 +322,8 @@ impl<T> Grid<T> {
                         (
                             entity,
                             GridLocation::new(
-                                i as u32 / GRID_SIZE as u32,
-                                i as u32 % GRID_SIZE as u32,
+                                i as u32 / GRID_SIZE_Y as u32,
+                                i as u32 % GRID_SIZE_Y as u32,
                             ),
                         )
                     })
@@ -377,14 +387,14 @@ pub fn neumann_neighbors<T>(grid: &Grid<T>, location: &GridLocation) -> Vec<Grid
             successors.push(location);
         }
     }
-    if x + 1 < GRID_SIZE as u32 {
+    if x + 1 < GRID_SIZE_X as u32 {
         let right = x + 1;
         let location = GridLocation::new(right, y);
         if !grid.occupied(&location) {
             successors.push(location);
         }
     }
-    if y + 1 < GRID_SIZE as u32 {
+    if y + 1 < GRID_SIZE_Y as u32 {
         let up = y + 1;
         let location = GridLocation::new(x, up);
         if !grid.occupied(&location) {

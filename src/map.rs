@@ -1,5 +1,7 @@
 use bevy::{prelude::*, utils::HashMap};
 
+use crate::grid::{GRID_SIZE_X, GRID_SIZE_Y, TILE_SIZE};
+
 #[derive(Component, Default, Clone, Copy)]
 pub struct Impassable;
 
@@ -9,16 +11,17 @@ pub enum GameSprite {
     Player,
     Npc,
     Wall,
+    Floor,
 }
 
 #[derive(Resource, Default)]
 pub struct SpriteMap {
-    map: HashMap<GameSprite, (Handle<TextureAtlas>, usize)>,
+    map: HashMap<GameSprite, (Handle<TextureAtlas>, usize, Color)>,
 }
 
 pub fn update_sprites(
     mut commands: Commands,
-    mut sprites: Query<(Entity, &GameSprite, Option<&mut TextureAtlasSprite>)>,
+    mut sprites: Query<(Entity, &GameSprite, Option<&mut TextureAtlasSprite>), Changed<GameSprite>>,
     map: Res<SpriteMap>,
 ) {
     for (entity, sprite, texture_atlas) in &mut sprites {
@@ -28,6 +31,7 @@ pub fn update_sprites(
                 commands.entity(entity).insert((
                     TextureAtlasSprite {
                         index: map.map[sprite].1,
+                        color: map.map[sprite].2,
                         ..default()
                     },
                     map.map[sprite].0.clone(),
@@ -54,17 +58,38 @@ pub fn setup(
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
 
     let mut map = SpriteMap::default();
-    map.map
-        .insert(GameSprite::Player, (texture_atlas_handle.clone(), 1));
-    map.map
-        .insert(GameSprite::Npc, (texture_atlas_handle.clone(), 2));
-    map.map
-        .insert(GameSprite::Wall, (texture_atlas_handle.clone(), 3 + 3 * 16));
+    map.map.insert(
+        GameSprite::Player,
+        (texture_atlas_handle.clone(), 1, Color::WHITE),
+    );
+    map.map.insert(
+        GameSprite::Npc,
+        (texture_atlas_handle.clone(), 2, Color::WHITE),
+    );
+    map.map.insert(
+        GameSprite::Wall,
+        (
+            texture_atlas_handle.clone(),
+            3 + 3 * 16,
+            Color::rgba(0.5, 0.5, 0.5, 1.0),
+        ),
+    );
+    map.map.insert(
+        GameSprite::Floor,
+        (
+            texture_atlas_handle.clone(),
+            14 + 2 * 16,
+            Color::rgba(0.5, 0.5, 0.5, 0.5),
+        ),
+    );
 
     commands.insert_resource(map);
 
     // TODO hdpi?
     let mut camera = Camera2dBundle::default();
-    camera.projection.scale = 0.3;
+    camera.projection.scale = 0.4;
+    let center_x = (GRID_SIZE_X - 1) as f32 * TILE_SIZE / 2.0;
+    let center_y = (GRID_SIZE_Y - 1) as f32 * TILE_SIZE / 2.0;
+    camera.transform = Transform::from_xyz(center_x, center_y, 0.0);
     commands.spawn(camera);
 }

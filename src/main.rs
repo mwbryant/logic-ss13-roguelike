@@ -1,13 +1,13 @@
 #![allow(clippy::type_complexity)]
-mod grid;
+pub mod grid;
 pub mod map;
-mod player;
+pub mod player;
 
-use bevy::prelude::KeyCode::{A, D, P, S, W, X};
+use bevy::prelude::KeyCode::{P, X};
 use bevy::prelude::*;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
-use grid::{Grid, GridLocation, GridPlugin, LockToGrid};
+use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
 use map::{setup, update_sprites, GameSprite, Impassable};
 use player::{move_player, Player, PlayerTookTurn};
 
@@ -17,6 +17,7 @@ fn main() {
         .add_plugins(RngPlugin::default().with_rng_seed(0))
         .insert_resource(ClearColor(Color::rgb(0.000001, 0.000001, 0.000001)))
         .add_plugins(GridPlugin::<Impassable>::default())
+        .add_plugins(GridPlugin::<Floor>::default())
         .add_systems(Startup, (spawn_player, setup))
         .add_event::<PlayerTookTurn>()
         .add_systems(
@@ -37,6 +38,9 @@ pub struct Hands {
     hands: Vec<Hand>,
     active: Option<usize>,
 }
+
+#[derive(Component, Debug, Default)]
+pub struct Floor;
 
 impl Hands {
     pub fn swap_active(&mut self) {
@@ -130,6 +134,17 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
             SpatialBundle::default(),
         ));
     }
+    commands.spawn_batch((0..GRID_SIZE_X).flat_map(|x| {
+        (0..GRID_SIZE_Y).map(move |y| {
+            (
+                LockToGrid,
+                GridLocation::new(x as u32, y as u32),
+                Floor,
+                GameSprite::Floor,
+                SpatialBundle::from_transform(Transform::from_xyz(0.0, 0.0, -100.0)),
+            )
+        })
+    }));
 }
 
 fn update_active_hand(mut player: Query<&mut Hands>, keyboard: Res<Input<KeyCode>>) {
