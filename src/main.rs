@@ -1,9 +1,11 @@
 #![allow(clippy::type_complexity)]
 pub mod grid;
+pub mod interactable;
 pub mod map;
 pub mod player;
 pub mod wfc;
 
+use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::KeyCode::{P, X};
 use bevy::prelude::*;
@@ -11,8 +13,9 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
+use interactable::{player_interact, Interactable};
 use map::{setup, update_sprites, GameSprite, Impassable};
-use player::{move_player, Player, PlayerTookTurn};
+use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
 use wfc::{wfc, WfcSettings};
 
 fn main() {
@@ -20,15 +23,19 @@ fn main() {
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()).build())
         .add_plugins(RngPlugin::default().with_rng_seed(0))
         .insert_resource(ClearColor(Color::rgb(0.000001, 0.000001, 0.000001)))
-        .add_plugins(GridPlugin::<Impassable>::default())
-        .add_plugins(GridPlugin::<Floor>::default())
+        .add_plugins((
+            GridPlugin::<Floor>::default(),
+            GridPlugin::<Impassable>::default(),
+            GridPlugin::<Interactable>::default(),
+        ))
         .add_plugins(
-            WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Escape)),
+            WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
         )
         .init_resource::<WfcSettings>()
         .register_type::<WfcSettings>()
         .add_systems(Startup, (spawn_player, setup))
         .add_event::<PlayerTookTurn>()
+        .add_event::<PlayerInteract>()
         .add_systems(
             Update,
             (
@@ -41,7 +48,7 @@ fn main() {
         )
         .add_systems(
             Update,
-            (npc_wander)
+            (npc_wander, player_interact)
                 .run_if(on_event::<PlayerTookTurn>())
                 .before(move_player),
         )
@@ -149,6 +156,14 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
             SpatialBundle::default(),
         ));
     }
+    commands.spawn((
+        GridLocation::new(1, 3),
+        LockToGrid,
+        Interactable,
+        Impassable,
+        GameSprite::VendingMachine,
+        SpatialBundle::default(),
+    ));
     commands.spawn_batch((0..GRID_SIZE_X).flat_map(|x| {
         (0..GRID_SIZE_Y).map(move |y| {
             (

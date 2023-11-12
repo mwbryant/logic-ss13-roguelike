@@ -18,7 +18,7 @@ pub struct WfcSettings {
 
 impl Default for WfcSettings {
     fn default() -> Self {
-        Self { pattern_size: 5 }
+        Self { pattern_size: 3 }
     }
 }
 

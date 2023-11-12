@@ -67,10 +67,7 @@ impl<T: Component> Plugin for GridPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<Grid<T>>()
             .init_resource::<ConnectedComponents<T>>()
-            .add_systems(
-                Update,
-                (lock_to_grid::<T>, update_connected_components::<T>),
-            )
+            .add_systems(PostUpdate, (update_connected_components::<T>))
             .add_event::<DirtyGridEvent<T>>()
             // TODO move_on_grid / GridLocation change detection
             .add_systems(Startup, first_dirty_event::<T>)
@@ -78,6 +75,7 @@ impl<T: Component> Plugin for GridPlugin<T> {
                 PreUpdate,
                 (
                     add_to_grid::<T>,
+                    lock_to_grid::<T>.after(update_in_grid::<T>),
                     update_in_grid::<T>.after(add_to_grid::<T>),
                     remove_from_grid::<T>,
                     resolve_connected_components::<T>,
@@ -88,10 +86,13 @@ impl<T: Component> Plugin for GridPlugin<T> {
 
 fn lock_to_grid<T: Component>(
     grid: Res<Grid<T>>,
-    mut positions: Query<&mut Transform, (With<LockToGrid>, With<T>, Changed<GridLocation>)>,
+    mut positions: Query<
+        (Entity, &mut Transform),
+        (With<LockToGrid>, With<T>, Changed<GridLocation>),
+    >,
 ) {
-    for (entity, location) in grid.iter() {
-        if let Ok(mut position) = positions.get_mut(entity) {
+    for (entity, mut position) in &mut positions {
+        if let Some(location) = grid.find_in_grid(entity) {
             position.translation.x = location.x as f32 * TILE_SIZE;
             position.translation.y = location.y as f32 * TILE_SIZE;
         }

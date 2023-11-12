@@ -12,6 +12,7 @@ pub enum GameSprite {
     Npc,
     Wall,
     Floor,
+    VendingMachine,
 }
 
 #[derive(Resource, Default)]
@@ -80,6 +81,14 @@ pub fn setup(
             texture_atlas_handle.clone(),
             14 + 2 * 16,
             Color::rgba(0.5, 0.5, 0.5, 0.5),
+        ),
+    );
+    map.map.insert(
+        GameSprite::VendingMachine,
+        (
+            texture_atlas_handle.clone(),
+            'V' as usize,
+            Color::rgba(0.5, 0.9, 0.5, 0.5),
         ),
     );
 
