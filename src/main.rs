@@ -2,14 +2,18 @@
 pub mod grid;
 pub mod map;
 pub mod player;
+pub mod wfc;
 
+use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::KeyCode::{P, X};
 use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
 use map::{setup, update_sprites, GameSprite, Impassable};
 use player::{move_player, Player, PlayerTookTurn};
+use wfc::{wfc, WfcSettings};
 
 fn main() {
     App::new()
@@ -18,11 +22,22 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.000001, 0.000001, 0.000001)))
         .add_plugins(GridPlugin::<Impassable>::default())
         .add_plugins(GridPlugin::<Floor>::default())
+        .add_plugins(
+            WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Escape)),
+        )
+        .init_resource::<WfcSettings>()
+        .register_type::<WfcSettings>()
         .add_systems(Startup, (spawn_player, setup))
         .add_event::<PlayerTookTurn>()
         .add_systems(
             Update,
-            (print_debug, update_active_hand, update_sprites, move_player),
+            (
+                print_debug,
+                update_active_hand,
+                update_sprites,
+                move_player,
+                wfc,
+            ),
         )
         .add_systems(
             Update,
