@@ -9,7 +9,7 @@ pub struct CentralMenu {
 }
 
 #[derive(Event)]
-pub struct OpenMenu(Entity);
+pub struct OpenMenu(pub Entity);
 
 #[derive(Event)]
 pub struct CloseMenu;

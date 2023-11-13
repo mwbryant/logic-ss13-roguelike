@@ -15,10 +15,11 @@ use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
 use interactable::{player_interact, Interactable};
 use map::{setup, update_sprites, GameSprite, Impassable};
+use menu::CentralMenuPlugin;
 use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
 use wfc::{wfc, WfcSettings};
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct GameState {
     // What does this represent really matt
     pub in_menu: bool,
@@ -29,10 +30,12 @@ fn main() {
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()).build())
         .add_plugins(RngPlugin::default().with_rng_seed(0))
         .insert_resource(ClearColor(Color::rgb(0.000001, 0.000001, 0.000001)))
+        .init_resource::<GameState>()
         .add_plugins((
             GridPlugin::<Floor>::default(),
             GridPlugin::<Impassable>::default(),
             GridPlugin::<Interactable>::default(),
+            CentralMenuPlugin,
         ))
         .add_plugins(
             WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
