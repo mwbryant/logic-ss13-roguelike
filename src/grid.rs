@@ -67,7 +67,7 @@ impl<T: Component> Plugin for GridPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<Grid<T>>()
             .init_resource::<ConnectedComponents<T>>()
-            .add_systems(PostUpdate, (update_connected_components::<T>))
+            .add_systems(PostUpdate, update_connected_components::<T>)
             .add_event::<DirtyGridEvent<T>>()
             // TODO move_on_grid / GridLocation change detection
             .add_systems(Startup, first_dirty_event::<T>)

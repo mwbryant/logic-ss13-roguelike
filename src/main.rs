@@ -2,10 +2,10 @@
 pub mod grid;
 pub mod interactable;
 pub mod map;
+mod menu;
 pub mod player;
 pub mod wfc;
 
-use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::KeyCode::{P, X};
 use bevy::prelude::*;
@@ -17,6 +17,12 @@ use interactable::{player_interact, Interactable};
 use map::{setup, update_sprites, GameSprite, Impassable};
 use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
 use wfc::{wfc, WfcSettings};
+
+#[derive(Resource)]
+pub struct GameState {
+    // What does this represent really matt
+    pub in_menu: bool,
+}
 
 fn main() {
     App::new()
@@ -159,7 +165,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
     commands.spawn((
         GridLocation::new(1, 3),
         LockToGrid,
-        Interactable,
+        Interactable::VendingMachine,
         Impassable,
         GameSprite::VendingMachine,
         SpatialBundle::default(),
