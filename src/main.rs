@@ -13,7 +13,7 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
-use interactable::{player_interact, Interactable};
+use interactable::{player_interact, vending_machine_menu, Interactable, VendingMachine};
 use map::{setup, update_sprites, GameSprite, Impassable};
 use menu::CentralMenuPlugin;
 use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
@@ -52,6 +52,7 @@ fn main() {
                 update_active_hand,
                 update_sprites,
                 move_player,
+                vending_machine_menu,
                 wfc,
             ),
         )
@@ -93,6 +94,13 @@ impl Hands {
             .unwrap_or(false)
     }
 
+    pub fn can_pickup(&self) -> bool {
+        self.active
+            .and_then(|idx| self.hands.get(idx))
+            .map(|hand| hand.holding.is_none())
+            .unwrap_or(false)
+    }
+
     pub fn human_hands() -> Self {
         Self {
             hands: vec![Hand::default(), Hand::default()],
@@ -103,7 +111,7 @@ impl Hands {
 
 #[derive(Debug, Default)]
 pub struct Hand {
-    holding: Option<Entity>,
+    pub holding: Option<Entity>,
 }
 
 #[derive(Component)]
@@ -136,7 +144,7 @@ fn npc_wander(
 #[derive(Component)]
 pub struct Npc;
 
-fn print_debug(player: Query<&Hands>, keyboard: Res<Input<KeyCode>>) {
+fn print_debug(player: Query<&Hands, With<Player>>, keyboard: Res<Input<KeyCode>>) {
     if keyboard.just_pressed(P) {
         info!("{:?}", player.get_single());
     }
@@ -169,6 +177,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
         GridLocation::new(1, 3),
         LockToGrid,
         Interactable::VendingMachine,
+        VendingMachine::default(),
         Impassable,
         GameSprite::VendingMachine,
         SpatialBundle::default(),
@@ -186,11 +195,12 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
     }));
 }
 
-fn update_active_hand(mut player: Query<&mut Hands>, keyboard: Res<Input<KeyCode>>) {
+fn update_active_hand(mut player: Query<&mut Hands, With<Player>>, keyboard: Res<Input<KeyCode>>) {
     if keyboard.just_pressed(X) {
         let Ok(mut hands) = player.get_single_mut() else {
             return;
         };
+        info!("updaing");
         hands.swap_active();
     }
 }
