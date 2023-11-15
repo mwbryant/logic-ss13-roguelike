@@ -1,6 +1,9 @@
 use bevy::{prelude::*, render::camera::ScalingMode, utils::HashMap};
 
-use crate::grid::{GRID_SIZE_X, GRID_SIZE_Y, TILE_SIZE};
+use crate::{
+    grid::{GRID_SIZE_X, GRID_SIZE_Y, TILE_SIZE},
+    menu::{MENU_SIZE_X, MENU_SIZE_Y},
+};
 
 #[derive(Component, Default, Clone, Copy)]
 pub struct Impassable;
@@ -11,6 +14,7 @@ pub enum GameSprite {
     Player,
     Npc,
     Wall,
+    MenuBackground,
     Floor,
     VendingMachine,
 }
@@ -26,6 +30,13 @@ pub fn update_sprites(
     map: Res<SpriteMap>,
 ) {
     for (entity, sprite, texture_atlas) in &mut sprites {
+        let mut custom_size = None;
+        if matches!(sprite, &GameSprite::MenuBackground) {
+            custom_size = Some(Vec2::new(
+                TILE_SIZE * MENU_SIZE_X as f32,
+                TILE_SIZE * MENU_SIZE_Y as f32,
+            ));
+        }
         match texture_atlas {
             Some(mut atlas) => atlas.index = map.map[sprite].1,
             None => {
@@ -33,6 +44,7 @@ pub fn update_sprites(
                     TextureAtlasSprite {
                         index: map.map[sprite].1,
                         color: map.map[sprite].2,
+                        custom_size,
                         ..default()
                     },
                     map.map[sprite].0.clone(),
@@ -72,7 +84,15 @@ pub fn setup(
         (
             texture_atlas_handle.clone(),
             3 + 3 * 16,
-            Color::rgba(0.5, 0.5, 0.5, 1.0),
+            Color::rgba(1.0, 0.8, 0.5, 1.0),
+        ),
+    );
+    map.map.insert(
+        GameSprite::MenuBackground,
+        (
+            texture_atlas_handle.clone(),
+            0,
+            Color::rgba(0.2, 0.2, 0.2, 1.0),
         ),
     );
     map.map.insert(

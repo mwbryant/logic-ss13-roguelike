@@ -15,22 +15,15 @@ use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
 use interactable::{player_interact, vending_machine_menu, Interactable, VendingMachine};
 use map::{setup, update_sprites, GameSprite, Impassable};
-use menu::CentralMenuPlugin;
+use menu::{menu_is_open, CentralMenuPlugin};
 use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
 use wfc::{wfc, WfcSettings};
-
-#[derive(Resource, Default)]
-pub struct GameState {
-    // What does this represent really matt
-    pub in_menu: bool,
-}
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()).build())
         .add_plugins(RngPlugin::default().with_rng_seed(0))
         .insert_resource(ClearColor(Color::rgb(0.000001, 0.000001, 0.000001)))
-        .init_resource::<GameState>()
         .add_plugins((
             GridPlugin::<Floor>::default(),
             GridPlugin::<Impassable>::default(),
@@ -51,8 +44,8 @@ fn main() {
                 print_debug,
                 update_active_hand,
                 update_sprites,
-                move_player,
-                vending_machine_menu,
+                move_player.run_if(not(menu_is_open())),
+                vending_machine_menu.run_if(menu_is_open()),
                 wfc,
             ),
         )
@@ -200,7 +193,6 @@ fn update_active_hand(mut player: Query<&mut Hands, With<Player>>, keyboard: Res
         let Ok(mut hands) = player.get_single_mut() else {
             return;
         };
-        info!("updaing");
         hands.swap_active();
     }
 }

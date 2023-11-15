@@ -28,11 +28,6 @@ pub fn vending_machine_menu(
     mut player_hand: Query<&mut Hands, With<Player>>,
     mut close_menu: EventWriter<CloseMenu>,
 ) {
-    if !menu.open {
-        // TODO run condition this
-        return;
-    }
-
     // TODO remove unwrap
     if let Ok(mut machine) = machines.get_mut(menu.owner.unwrap()) {
         if input.just_pressed(KeyCode::Return) {

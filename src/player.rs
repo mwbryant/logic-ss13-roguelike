@@ -4,7 +4,6 @@ use crate::{
     grid::{Grid, GridLocation},
     interactable::Interactable,
     map::Impassable,
-    GameState,
 };
 
 #[derive(Event)]
@@ -22,11 +21,7 @@ pub fn move_player(
     interact_grid: Res<Grid<Interactable>>,
     mut turn_event: EventWriter<PlayerTookTurn>,
     mut interact_event: EventWriter<PlayerInteract>,
-    world: Res<GameState>,
 ) {
-    if world.in_menu {
-        return;
-    }
     for mut location in &mut player {
         let mut point = location.get_location();
 
