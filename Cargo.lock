@@ -204,6 +204,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "array2d"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79093d31d0a9c7832c71ad74dd945b7861f721e6f242aa67be253a5eecbac937"
+
+[[package]]
 name = "arrayref"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2396,6 +2402,7 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 name = "logic-ss-13"
 version = "0.1.0"
 dependencies = [
+ "array2d",
  "bevy",
  "bevy-inspector-egui",
  "bevy_turborand",

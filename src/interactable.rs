@@ -2,7 +2,8 @@ use bevy::prelude::*;
 
 use crate::{
     grid::Grid,
-    menu::{CentralMenu, CloseMenu, OpenMenu},
+    map::GameSprite,
+    menu::{CentralMenu, CloseMenu, MenuItem, MenuOpened, OpenMenu},
     player::{Player, PlayerInteract},
     Hands, Tool,
 };
@@ -15,9 +16,28 @@ pub enum Interactable {
 
 #[derive(Component, Default)]
 pub struct VendingMachine {
-    // Wiring insdie if panel is open
+    // Wiring inside if panel is open
     // every ship has a master wiring diagram somewhere
     selection: usize,
+}
+
+pub fn spawn_vending_machine_menu_graphics(
+    mut commands: Commands,
+    mut menu: ResMut<CentralMenu>,
+    machines: Query<&VendingMachine>,
+    mut event: EventReader<MenuOpened>,
+) {
+    for _ev in event.read() {
+        if let Ok(_machine) = machines.get(menu.owner.unwrap()) {
+            menu.set_row_text(
+                &mut commands,
+                "> first row which is a very long row with a stupid number of characters",
+                0,
+            );
+            menu.set_row_text(&mut commands, "> hello", 1);
+            menu.set_row_text(&mut commands, "> last row", 23);
+        }
+    }
 }
 
 pub fn vending_machine_menu(
@@ -53,12 +73,12 @@ pub fn player_interact(
     mut open_menu: EventWriter<OpenMenu>,
 ) {
     for event in interact.read() {
-        grid[&event.0].as_ref().map(|entities| {
+        if let Some(entities) = grid[&event.0].as_ref() {
             entities.iter().for_each(|entity| {
                 // TODO if multiple make player select
                 info!("Player interacted with me");
                 open_menu.send(OpenMenu(*entity));
             });
-        });
+        }
     }
 }

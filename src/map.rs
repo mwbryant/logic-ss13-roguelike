@@ -1,9 +1,6 @@
 use bevy::{prelude::*, render::camera::ScalingMode, utils::HashMap};
 
-use crate::{
-    grid::{GRID_SIZE_X, GRID_SIZE_Y, TILE_SIZE},
-    menu::{MENU_SIZE_X, MENU_SIZE_Y},
-};
+use crate::grid::{GRID_SIZE_X, GRID_SIZE_Y, TILE_SIZE};
 
 #[derive(Component, Default, Clone, Copy)]
 pub struct Impassable;
@@ -17,6 +14,7 @@ pub enum GameSprite {
     MenuBackground,
     Floor,
     VendingMachine,
+    Text(char),
 }
 
 #[derive(Resource, Default)]
@@ -30,13 +28,6 @@ pub fn update_sprites(
     map: Res<SpriteMap>,
 ) {
     for (entity, sprite, texture_atlas) in &mut sprites {
-        let mut custom_size = None;
-        if matches!(sprite, &GameSprite::MenuBackground) {
-            custom_size = Some(Vec2::new(
-                TILE_SIZE * MENU_SIZE_X as f32,
-                TILE_SIZE * MENU_SIZE_Y as f32,
-            ));
-        }
         match texture_atlas {
             Some(mut atlas) => atlas.index = map.map[sprite].1,
             None => {
@@ -44,7 +35,6 @@ pub fn update_sprites(
                     TextureAtlasSprite {
                         index: map.map[sprite].1,
                         color: map.map[sprite].2,
-                        custom_size,
                         ..default()
                     },
                     map.map[sprite].0.clone(),
@@ -112,11 +102,23 @@ pub fn setup(
         ),
     );
 
+    let alphabet = ('a'..='z').chain('A'..='Z').chain(" ><_-=+:;".chars());
+
+    for c in alphabet {
+        map.map.insert(
+            GameSprite::Text(c),
+            (
+                texture_atlas_handle.clone(),
+                c as usize,
+                Color::rgba(0.9, 0.9, 0.9, 1.0),
+            ),
+        );
+    }
+
     commands.insert_resource(map);
 
     // TODO hdpi?
     let mut camera = Camera2dBundle::default();
-    // camera.projection.scale = 0.4;
     camera.projection.scaling_mode = ScalingMode::Fixed {
         width: 765.0,
         height: 432.0,

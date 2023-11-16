@@ -13,9 +13,12 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
-use interactable::{player_interact, vending_machine_menu, Interactable, VendingMachine};
+use interactable::{
+    player_interact, spawn_vending_machine_menu_graphics, vending_machine_menu, Interactable,
+    VendingMachine,
+};
 use map::{setup, update_sprites, GameSprite, Impassable};
-use menu::{menu_is_open, CentralMenuPlugin};
+use menu::{menu_is_open, CentralMenuPlugin, MenuOpened};
 use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
 use wfc::{wfc, WfcSettings};
 
@@ -46,6 +49,7 @@ fn main() {
                 update_sprites,
                 move_player.run_if(not(menu_is_open())),
                 vending_machine_menu.run_if(menu_is_open()),
+                spawn_vending_machine_menu_graphics.run_if(on_event::<MenuOpened>()),
                 wfc,
             ),
         )

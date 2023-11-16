@@ -16,3 +16,4 @@ rand = "0.8.5"
 wfc_image = "0.12.1"
 image = { version = "0.24", default-features = false, features = ["png"] }
 bevy-inspector-egui = "0.21.0"
+array2d = "0.3.0"

@@ -1,0 +1,5 @@
+Actions take time, everything is turn based but time constrainted
+make money
+
+loot stations is the first loop
+if you take too long then the govt arrives
