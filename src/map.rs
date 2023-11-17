@@ -17,6 +17,9 @@ pub enum GameSprite {
     Text(char),
 }
 
+#[derive(Component, Clone)]
+pub struct TintOverride(pub Color);
+
 #[derive(Resource, Default)]
 pub struct SpriteMap {
     map: HashMap<GameSprite, (Handle<TextureAtlas>, usize, Color)>,
@@ -24,17 +27,34 @@ pub struct SpriteMap {
 
 pub fn update_sprites(
     mut commands: Commands,
-    mut sprites: Query<(Entity, &GameSprite, Option<&mut TextureAtlasSprite>), Changed<GameSprite>>,
+    mut sprites: Query<
+        (
+            Entity,
+            &GameSprite,
+            Option<&mut TextureAtlasSprite>,
+            Option<&TintOverride>,
+        ),
+        Changed<GameSprite>,
+    >,
     map: Res<SpriteMap>,
 ) {
-    for (entity, sprite, texture_atlas) in &mut sprites {
+    for (entity, sprite, texture_atlas, tint) in &mut sprites {
+        let color = if let Some(tint) = tint {
+            tint.0
+        } else {
+            map.map[sprite].2
+        };
+
         match texture_atlas {
-            Some(mut atlas) => atlas.index = map.map[sprite].1,
+            Some(mut atlas) => {
+                atlas.index = map.map[sprite].1;
+                atlas.color = color;
+            }
             None => {
                 commands.entity(entity).insert((
                     TextureAtlasSprite {
                         index: map.map[sprite].1,
-                        color: map.map[sprite].2,
+                        color,
                         ..default()
                     },
                     map.map[sprite].0.clone(),

@@ -14,11 +14,11 @@ use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
 use interactable::{
-    player_interact, spawn_vending_machine_menu_graphics, vending_machine_menu, Interactable,
+    player_interact, update_vending_machine_menu_graphics, vending_machine_menu, Interactable,
     VendingMachine,
 };
 use map::{setup, update_sprites, GameSprite, Impassable};
-use menu::{menu_is_open, CentralMenuPlugin, MenuOpened};
+use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
 use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
 use wfc::{wfc, WfcSettings};
 
@@ -41,15 +41,15 @@ fn main() {
         .add_systems(Startup, (spawn_player, setup))
         .add_event::<PlayerTookTurn>()
         .add_event::<PlayerInteract>()
+        .add_systems(PostUpdate, (update_sprites,))
         .add_systems(
             Update,
             (
                 print_debug,
                 update_active_hand,
-                update_sprites,
                 move_player.run_if(not(menu_is_open())),
                 vending_machine_menu.run_if(menu_is_open()),
-                spawn_vending_machine_menu_graphics.run_if(on_event::<MenuOpened>()),
+                update_vending_machine_menu_graphics.run_if(on_event::<MenuRedraw>()),
                 wfc,
             ),
         )

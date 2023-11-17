@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 use crate::{
     grid::{GRID_SIZE_X, GRID_SIZE_Y, TILE_SIZE},
-    map::GameSprite,
+    map::{GameSprite, TintOverride},
 };
 
 pub const MENU_SIZE_X: usize = 48;
@@ -27,18 +27,31 @@ impl Default for CentralMenu {
 }
 
 impl CentralMenu {
-    pub fn set_row_text(&mut self, commands: &mut Commands, input: &str, row: usize) {
-        for item in self.contents.row_iter(row).unwrap().flatten() {
+    pub fn clear_menu(&mut self, commands: &mut Commands) {
+        for item in self.contents.elements_row_major_iter().flatten() {
             if let Some(entity) = commands.get_entity(*item) {
                 entity.despawn_recursive();
             }
         }
+    }
+
+    pub fn set_row_text(
+        &mut self,
+        commands: &mut Commands,
+        input: &str,
+        row: usize,
+        tint: Option<TintOverride>,
+    ) {
         for x in 0..self.contents.num_columns() {
             // ugh
             let entity = input.chars().nth(x).map(|c| {
-                commands
+                let entity = commands
                     .spawn((MenuItem, SpatialBundle::default(), GameSprite::Text(c)))
-                    .id()
+                    .id();
+                if let Some(tint) = &tint {
+                    commands.entity(entity).insert(tint.clone());
+                }
+                entity
             });
             self.contents[(row, x)] = entity;
         }
@@ -79,7 +92,7 @@ fn lock_to_menu(
 pub struct OpenMenu(pub Entity);
 
 #[derive(Event)]
-pub struct MenuOpened;
+pub struct MenuRedraw;
 
 #[derive(Event)]
 pub struct CloseMenu;
@@ -90,9 +103,11 @@ impl Plugin for CentralMenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<OpenMenu>()
             .add_event::<CloseMenu>()
-            .add_event::<MenuOpened>()
+            .add_event::<MenuRedraw>()
             .init_resource::<CentralMenu>()
-            .add_systems(Update, (open_menu, lock_to_menu, close_menu).chain());
+            .add_systems(Update, (open_menu, close_menu).chain())
+            // FIXME this is schedule abuse, create a schedule or insert a flush correctly
+            .add_systems(SpawnScene, (lock_to_menu).chain());
     }
 }
 
@@ -103,7 +118,7 @@ pub fn menu_is_open() -> impl Condition<()> {
 fn open_menu(
     mut commands: Commands,
     mut events: EventReader<OpenMenu>,
-    mut open_event: EventWriter<MenuOpened>,
+    mut open_event: EventWriter<MenuRedraw>,
     mut menu: ResMut<CentralMenu>,
 ) {
     for event in events.read() {
@@ -123,12 +138,21 @@ fn open_menu(
             )),
             GameSprite::MenuBackground,
         ));
-        open_event.send(MenuOpened);
+        open_event.send(MenuRedraw);
     }
 }
 
-fn close_menu(mut events: EventReader<CloseMenu>, mut menu: ResMut<CentralMenu>) {
+// FIXME Probably 1 frame gap where new entities can be spawned as this one despawns
+fn close_menu(
+    mut commands: Commands,
+    menu_items: Query<Entity, With<MenuItem>>,
+    mut events: EventReader<CloseMenu>,
+    mut menu: ResMut<CentralMenu>,
+) {
     for _event in events.read() {
+        for entity in &menu_items {
+            commands.entity(entity).despawn_recursive();
+        }
         if !menu.open {
             error!("Central Menu is already closed!")
         }

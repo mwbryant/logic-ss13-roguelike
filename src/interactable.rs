@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use crate::{
     grid::Grid,
-    map::GameSprite,
-    menu::{CentralMenu, CloseMenu, MenuItem, MenuOpened, OpenMenu},
+    map::TintOverride,
+    menu::{CentralMenu, CloseMenu, MenuRedraw, OpenMenu},
     player::{Player, PlayerInteract},
     Hands, Tool,
 };
@@ -21,21 +21,28 @@ pub struct VendingMachine {
     selection: usize,
 }
 
-pub fn spawn_vending_machine_menu_graphics(
+pub fn update_vending_machine_menu_graphics(
     mut commands: Commands,
     mut menu: ResMut<CentralMenu>,
     machines: Query<&VendingMachine>,
-    mut event: EventReader<MenuOpened>,
+    mut event: EventReader<MenuRedraw>,
 ) {
     for _ev in event.read() {
-        if let Ok(_machine) = machines.get(menu.owner.unwrap()) {
-            menu.set_row_text(
-                &mut commands,
-                "> first row which is a very long row with a stupid number of characters",
-                0,
-            );
-            menu.set_row_text(&mut commands, "> hello", 1);
-            menu.set_row_text(&mut commands, "> last row", 23);
+        let rows = [
+            "> Screwdriver",
+            "> Screwdriver",
+            "> Screwdriver",
+            "> Screwdriver",
+        ];
+        menu.clear_menu(&mut commands);
+        if let Ok(machine) = machines.get(menu.owner.unwrap()) {
+            for (i, row) in rows.iter().enumerate() {
+                if i == machine.selection {
+                    menu.set_row_text(&mut commands, row, i, Some(TintOverride(Color::YELLOW)));
+                } else {
+                    menu.set_row_text(&mut commands, row, i, None);
+                }
+            }
         }
     }
 }
@@ -47,6 +54,7 @@ pub fn vending_machine_menu(
     input: Res<Input<KeyCode>>,
     mut player_hand: Query<&mut Hands, With<Player>>,
     mut close_menu: EventWriter<CloseMenu>,
+    mut redraw_menu: EventWriter<MenuRedraw>,
 ) {
     // TODO remove unwrap
     if let Ok(mut machine) = machines.get_mut(menu.owner.unwrap()) {
@@ -61,8 +69,13 @@ pub fn vending_machine_menu(
 
             close_menu.send(CloseMenu);
         }
-        if input.just_pressed(KeyCode::W) {
+        if input.just_pressed(KeyCode::S) {
             machine.selection += 1;
+            redraw_menu.send(MenuRedraw);
+        }
+        if input.just_pressed(KeyCode::W) {
+            machine.selection = machine.selection.saturating_sub(1);
+            redraw_menu.send(MenuRedraw);
         }
     }
 }
