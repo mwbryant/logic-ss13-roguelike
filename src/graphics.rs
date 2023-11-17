@@ -1,6 +1,9 @@
 use bevy::{prelude::*, render::camera::ScalingMode, utils::HashMap};
 
-use crate::grid::{GRID_SIZE_X, GRID_SIZE_Y, TILE_SIZE};
+use crate::{
+    grid::{GRID_SIZE_X, GRID_SIZE_Y},
+    SCREEN_SIZE_X, SCREEN_SIZE_Y, TILE_SIZE,
+};
 
 #[derive(Component, Default, Clone, Copy)]
 pub struct Impassable;
@@ -15,6 +18,19 @@ pub enum GameSprite {
     Floor,
     VendingMachine,
     Text(char),
+    Border(BorderDirection),
+}
+
+#[derive(Component, Hash, PartialEq, Eq)]
+pub enum BorderDirection {
+    Top,
+    Bottom,
+    Left,
+    Right,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
 }
 
 #[derive(Component, Clone)]
@@ -121,6 +137,38 @@ pub fn setup(
             Color::rgba(0.5, 0.9, 0.5, 0.5),
         ),
     );
+    map.map.insert(
+        GameSprite::Border(BorderDirection::Top),
+        (
+            texture_atlas_handle.clone(),
+            12 * 16 + 13,
+            Color::rgba(0.9, 0.9, 0.9, 1.0),
+        ),
+    );
+    map.map.insert(
+        GameSprite::Border(BorderDirection::Bottom),
+        (
+            texture_atlas_handle.clone(),
+            12 * 16 + 13,
+            Color::rgba(0.9, 0.9, 0.9, 1.0),
+        ),
+    );
+    map.map.insert(
+        GameSprite::Border(BorderDirection::Left),
+        (
+            texture_atlas_handle.clone(),
+            11 * 16 + 10,
+            Color::rgba(0.9, 0.9, 0.9, 1.0),
+        ),
+    );
+    map.map.insert(
+        GameSprite::Border(BorderDirection::Right),
+        (
+            texture_atlas_handle.clone(),
+            11 * 16 + 10,
+            Color::rgba(0.9, 0.9, 0.9, 1.0),
+        ),
+    );
 
     let alphabet = ('a'..='z').chain('A'..='Z').chain(" ><_-=+:;".chars());
 
@@ -143,8 +191,9 @@ pub fn setup(
         width: 765.0,
         height: 432.0,
     };
-    let center_x = (GRID_SIZE_X - 1) as f32 * TILE_SIZE / 2.0;
-    let center_y = (GRID_SIZE_Y - 1) as f32 * TILE_SIZE / 2.0;
+    let center_x = (SCREEN_SIZE_X - 1) as f32 * TILE_SIZE / 2.0;
+    let center_y = (SCREEN_SIZE_Y - 1) as f32 * TILE_SIZE / 2.0
+        - (SCREEN_SIZE_Y - GRID_SIZE_Y) as f32 * TILE_SIZE;
     camera.transform = Transform::from_xyz(center_x, center_y, 0.0);
     commands.spawn(camera);
 }

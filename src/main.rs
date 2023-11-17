@@ -1,10 +1,12 @@
 #![allow(clippy::type_complexity)]
+pub mod graphics;
 pub mod grid;
 pub mod interactable;
-pub mod map;
+pub mod log;
 mod menu;
 pub mod player;
 pub mod wfc;
+pub mod status_bar;
 
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::KeyCode::{P, X};
@@ -12,15 +14,21 @@ use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
+use graphics::{setup, update_sprites, GameSprite, Impassable};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
 use interactable::{
     player_interact, update_vending_machine_menu_graphics, vending_machine_menu, Interactable,
     VendingMachine,
 };
-use map::{setup, update_sprites, GameSprite, Impassable};
+use log::setup_log;
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
 use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
+use status_bar::setup_status_bar;
 use wfc::{wfc, WfcSettings};
+
+pub const SCREEN_SIZE_X: usize = 85;
+pub const SCREEN_SIZE_Y: usize = 48;
+pub const TILE_SIZE: f32 = 9.0;
 
 fn main() {
     App::new()
@@ -38,7 +46,7 @@ fn main() {
         )
         .init_resource::<WfcSettings>()
         .register_type::<WfcSettings>()
-        .add_systems(Startup, (spawn_player, setup))
+        .add_systems(Startup, (spawn_player, setup, setup_log, setup_status_bar))
         .add_event::<PlayerTookTurn>()
         .add_event::<PlayerInteract>()
         .add_systems(PostUpdate, (update_sprites,))

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
+    graphics::TintOverride,
     grid::Grid,
-    map::TintOverride,
     menu::{CentralMenu, CloseMenu, MenuRedraw, OpenMenu},
     player::{Player, PlayerInteract},
     Hands, Tool,

@@ -12,10 +12,11 @@ use futures_lite::future;
 use pathfinding::undirected::connected_components;
 use rand::{seq::IteratorRandom, Rng};
 
+use crate::TILE_SIZE;
+
 // TODO Make this a generic on the plugin or otherwise configurable
-pub const GRID_SIZE_X: usize = 85;
-pub const GRID_SIZE_Y: usize = 48;
-pub const TILE_SIZE: f32 = 9.0;
+pub const GRID_SIZE_X: usize = 65;
+pub const GRID_SIZE_Y: usize = 36;
 
 #[derive(Resource)]
 pub struct Grid<T> {

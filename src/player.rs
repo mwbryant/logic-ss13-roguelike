@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
 use crate::{
+    graphics::Impassable,
     grid::{Grid, GridLocation},
     interactable::Interactable,
-    map::Impassable,
 };
 
 #[derive(Event)]

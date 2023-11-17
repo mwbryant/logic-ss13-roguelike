@@ -2,8 +2,9 @@ use array2d::Array2D;
 use bevy::prelude::*;
 
 use crate::{
-    grid::{GRID_SIZE_X, GRID_SIZE_Y, TILE_SIZE},
-    map::{GameSprite, TintOverride},
+    graphics::{GameSprite, TintOverride},
+    grid::{GRID_SIZE_X, GRID_SIZE_Y},
+    TILE_SIZE,
 };
 
 pub const MENU_SIZE_X: usize = 48;
