@@ -15,7 +15,7 @@ use rand::{seq::IteratorRandom, Rng};
 use crate::TILE_SIZE;
 
 // TODO Make this a generic on the plugin or otherwise configurable
-pub const GRID_SIZE_X: usize = 65;
+pub const GRID_SIZE_X: usize = 60;
 pub const GRID_SIZE_Y: usize = 36;
 
 #[derive(Resource)]

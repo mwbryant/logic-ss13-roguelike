@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     graphics::TintOverride,
     grid::Grid,
+    log::AddToLog,
     menu::{CentralMenu, CloseMenu, MenuRedraw, OpenMenu},
     player::{Player, PlayerInteract},
     Hands, Tool,
@@ -63,6 +64,7 @@ pub fn vending_machine_menu(
             let mut hands = player_hand.single_mut();
             if hands.can_pickup() {
                 info!("Got screwdriver");
+                commands.add(AddToLog("Got screwdriver".to_string(), None));
                 let entity = commands.spawn(Tool::Screwdriver).id();
                 hands.pickup(entity);
             }

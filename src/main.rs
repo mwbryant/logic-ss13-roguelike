@@ -5,8 +5,8 @@ pub mod interactable;
 pub mod log;
 mod menu;
 pub mod player;
-pub mod wfc;
 pub mod status_bar;
+pub mod wfc;
 
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::KeyCode::{P, X};
@@ -20,7 +20,7 @@ use interactable::{
     player_interact, update_vending_machine_menu_graphics, vending_machine_menu, Interactable,
     VendingMachine,
 };
-use log::setup_log;
+use log::{lock_to_log, setup_log, Log};
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
 use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
 use status_bar::setup_status_bar;
@@ -50,6 +50,7 @@ fn main() {
         .add_event::<PlayerTookTurn>()
         .add_event::<PlayerInteract>()
         .add_systems(PostUpdate, (update_sprites,))
+        .init_resource::<Log>()
         .add_systems(
             Update,
             (
@@ -61,6 +62,8 @@ fn main() {
                 wfc,
             ),
         )
+        // XXX this is schedule abuse
+        .add_systems(SpawnScene, lock_to_log)
         .add_systems(
             Update,
             (npc_wander, player_interact)

@@ -1,9 +1,6 @@
 use bevy::{prelude::*, render::camera::ScalingMode, utils::HashMap};
 
-use crate::{
-    grid::{GRID_SIZE_X, GRID_SIZE_Y},
-    SCREEN_SIZE_X, SCREEN_SIZE_Y, TILE_SIZE,
-};
+use crate::{grid::GRID_SIZE_Y, SCREEN_SIZE_X, SCREEN_SIZE_Y, TILE_SIZE};
 
 #[derive(Component, Default, Clone, Copy)]
 pub struct Impassable;
@@ -166,6 +163,38 @@ pub fn setup(
         (
             texture_atlas_handle.clone(),
             11 * 16 + 10,
+            Color::rgba(0.9, 0.9, 0.9, 1.0),
+        ),
+    );
+    map.map.insert(
+        GameSprite::Border(BorderDirection::BottomLeft),
+        (
+            texture_atlas_handle.clone(),
+            12 * 16 + 8,
+            Color::rgba(0.9, 0.9, 0.9, 1.0),
+        ),
+    );
+    map.map.insert(
+        GameSprite::Border(BorderDirection::TopRight),
+        (
+            texture_atlas_handle.clone(),
+            11 * 16 + 11,
+            Color::rgba(0.9, 0.9, 0.9, 1.0),
+        ),
+    );
+    map.map.insert(
+        GameSprite::Border(BorderDirection::BottomRight),
+        (
+            texture_atlas_handle.clone(),
+            11 * 16 + 12,
+            Color::rgba(0.9, 0.9, 0.9, 1.0),
+        ),
+    );
+    map.map.insert(
+        GameSprite::Border(BorderDirection::TopLeft),
+        (
+            texture_atlas_handle.clone(),
+            12 * 16 + 9,
             Color::rgba(0.9, 0.9, 0.9, 1.0),
         ),
     );
