@@ -69,7 +69,6 @@ pub fn wfc(mut commands: Commands, input: Res<Input<KeyCode>>, settings: Res<Wfc
         let start_time = ::std::time::Instant::now();
         let pattern_size =
             NonZeroU32::new(settings.pattern_size).expect("pattern size may not be zero");
-        /*
         let result = generate_image(
             &input_image,
             pattern_size,
@@ -89,6 +88,5 @@ pub fn wfc(mut commands: Commands, input: Res<Input<KeyCode>>, settings: Res<Wfc
                 image_to_text(output_image, "result.txt").unwrap();
             }
         }
-        */
     }
 }

@@ -42,18 +42,6 @@ pub fn move_player(
             turn_event.send(PlayerTookTurn);
             return;
         }
-
-        let mut point = location.get_location();
-
-        if input.just_pressed(KeyCode::Up) {
-            point.y += 1;
-        } else if input.just_pressed(KeyCode::Down) {
-            point.y -= 1;
-        } else if input.just_pressed(KeyCode::Right) {
-            point.x += 1;
-        } else if input.just_pressed(KeyCode::Left) {
-            point.x -= 1;
-        }
         if point != location.get_location() && interact_grid.occupied(&point.into()) {
             turn_event.send(PlayerTookTurn);
             interact_event.send(PlayerInteract(point.into()));
