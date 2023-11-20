@@ -31,6 +31,7 @@ impl Command for AddToLog {
                 .0
                 .chars()
                 .enumerate()
+                .take(LOG_SIZE_X - 2)
                 .map(|(i, c)| {
                     let entity = world
                         .spawn((
@@ -63,9 +64,11 @@ pub fn lock_to_log(
     for (r, (i, entry)) in log.entries.iter().enumerate().rev().enumerate() {
         row -= 1;
         for (j, _char) in entry.chars().enumerate() {
-            let entity = log.entities[i][j];
+            let Some(entity) = log.entities[i].get(j) else {
+                break;
+            };
             if row >= 0 {
-                if let Ok(mut transform) = characters.get_mut(entity) {
+                if let Ok(mut transform) = characters.get_mut(*entity) {
                     transform.translation = Vec3::new(
                         (GRID_SIZE_X + j + 1) as f32 * TILE_SIZE,
                         (GRID_SIZE_Y as f32 - r as f32 - 2.) * TILE_SIZE,
@@ -74,8 +77,8 @@ pub fn lock_to_log(
                 }
             } else {
                 // PERF this sux
-                if characters.get(entity).is_ok() {
-                    commands.entity(entity).despawn_recursive();
+                if characters.get(*entity).is_ok() {
+                    commands.entity(*entity).despawn_recursive();
                 }
             }
         }

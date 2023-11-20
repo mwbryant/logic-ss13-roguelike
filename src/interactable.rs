@@ -64,7 +64,10 @@ pub fn vending_machine_menu(
             let mut hands = player_hand.single_mut();
             if hands.can_pickup() {
                 info!("Got screwdriver");
-                commands.add(AddToLog("Got screwdriver".to_string(), None));
+                commands.add(AddToLog(
+                    "Got screwdriver long strin gtest".to_string(),
+                    None,
+                ));
                 let entity = commands.spawn(Tool::Screwdriver).id();
                 hands.pickup(entity);
             }
