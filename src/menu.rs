@@ -1,35 +1,25 @@
-use array2d::Array2D;
 use bevy::prelude::*;
 
 use crate::{
     graphics::{GameSprite, TintOverride},
     grid::{GRID_SIZE_X, GRID_SIZE_Y},
+    text::{AsciiText, SpawnText},
     TILE_SIZE,
 };
 
 pub const MENU_SIZE_X: usize = 48;
 pub const MENU_SIZE_Y: usize = 24;
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct CentralMenu {
     pub open: bool,
-    pub contents: Array2D<Option<Entity>>,
+    pub contents: Vec<Entity>,
     pub owner: Option<Entity>,
-}
-
-impl Default for CentralMenu {
-    fn default() -> Self {
-        Self {
-            open: false,
-            contents: Array2D::filled_with(None, MENU_SIZE_Y, MENU_SIZE_X),
-            owner: None,
-        }
-    }
 }
 
 impl CentralMenu {
     pub fn clear_menu(&mut self, commands: &mut Commands) {
-        for item in self.contents.elements_row_major_iter().flatten() {
+        for item in self.contents.iter() {
             if let Some(entity) = commands.get_entity(*item) {
                 entity.despawn_recursive();
             }
@@ -43,19 +33,23 @@ impl CentralMenu {
         row: usize,
         tint: Option<TintOverride>,
     ) {
-        for x in 0..self.contents.num_columns() {
-            // ugh
-            let entity = input.chars().nth(x).map(|c| {
-                let entity = commands
-                    .spawn((MenuItem, SpatialBundle::default(), GameSprite::Text(c)))
-                    .id();
-                if let Some(tint) = &tint {
-                    commands.entity(entity).insert(tint.clone());
-                }
-                entity
-            });
-            self.contents[(row, x)] = entity;
-        }
+        let entity = commands.spawn_empty().id();
+        commands.add(SpawnText {
+            text: AsciiText {
+                text: input.to_string(),
+                line_length: MENU_SIZE_X - 2,
+            },
+            tint,
+            entity: Some(entity),
+            position: Vec3::new(
+                (GRID_SIZE_X - MENU_SIZE_X) as f32 / 2.0 * TILE_SIZE + TILE_SIZE * 0.5,
+                (GRID_SIZE_Y + MENU_SIZE_Y) as f32 / 2.0 * TILE_SIZE
+                    - TILE_SIZE * 0.5
+                    - row as f32 * TILE_SIZE,
+                900.0,
+            ),
+        });
+        self.contents.push(entity);
     }
 }
 
@@ -65,27 +59,12 @@ pub struct MenuItem;
 #[derive(Component)]
 pub struct MenuBackground;
 
-fn lock_to_menu(
-    mut positions: Query<&mut Transform, With<MenuItem>>,
-    mut menu_background: Query<&mut TextureAtlasSprite, With<MenuBackground>>,
-    menu: Res<CentralMenu>,
-) {
+fn lock_to_menu(mut menu_background: Query<&mut TextureAtlasSprite, With<MenuBackground>>) {
     for mut sprite in &mut menu_background {
         sprite.custom_size = Some(Vec2::new(
             TILE_SIZE * MENU_SIZE_X as f32,
             TILE_SIZE * MENU_SIZE_Y as f32,
         ));
-    }
-    let menu_position = Vec2::new(
-        (GRID_SIZE_X - menu.contents.num_columns()) as f32 / 2.0 * TILE_SIZE + TILE_SIZE * 0.5,
-        (GRID_SIZE_Y - menu.contents.num_rows()) as f32 / 2.0 * TILE_SIZE - TILE_SIZE * 0.5,
-    );
-    for (entity, location) in menu.iter() {
-        if let Ok(mut position) = positions.get_mut(entity) {
-            position.translation.x = menu_position.x + location.x as f32 * TILE_SIZE;
-            position.translation.y = menu_position.y + location.y as f32 * TILE_SIZE;
-            position.translation.z = 900.0;
-        }
     }
 }
 
@@ -159,19 +138,6 @@ fn close_menu(
         }
         menu.open = false;
         menu.owner = None;
-    }
-}
-
-impl CentralMenu {
-    pub fn iter(&self) -> impl Iterator<Item = (Entity, IVec2)> + '_ {
-        let x = self.contents.num_rows() as i32;
-        let y = self.contents.num_columns() as i32;
-        self.contents
-            .elements_row_major_iter()
-            .enumerate()
-            .filter_map(move |(i, cell)| {
-                cell.as_ref()
-                    .map(|&entity| (entity, IVec2::new(i as i32 % y, x - i as i32 / y)))
-            })
+        menu.clear_menu(&mut commands);
     }
 }
