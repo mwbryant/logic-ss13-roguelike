@@ -3,6 +3,7 @@ use bevy::{ecs::system::Command, prelude::*};
 use crate::{
     graphics::{BorderDirection, GameSprite, TintOverride},
     grid::{GRID_SIZE_X, GRID_SIZE_Y},
+    text::{AsciiText, SpawnText},
     SCREEN_SIZE_X, SCREEN_SIZE_Y, TILE_SIZE,
 };
 
@@ -12,13 +13,7 @@ pub const LOG_SIZE_Y: usize = SCREEN_SIZE_Y;
 #[derive(Resource, Default)]
 pub struct Log {
     entries: Vec<String>,
-    entities: Vec<Vec<Entity>>,
-}
-
-#[derive(Component)]
-pub struct LogCharacter {
-    pub entry_index: usize,
-    pub character_index: usize,
+    entities: Vec<Entity>,
 }
 
 pub struct AddToLog(pub String, pub Option<TintOverride>);
@@ -27,59 +22,47 @@ impl Command for AddToLog {
     fn apply(self, world: &mut World) {
         world.resource_scope(|world: &mut World, mut log: Mut<Log>| {
             let entry_index = log.entries.len();
-            let entities = self
-                .0
-                .chars()
-                .enumerate()
-                .take(LOG_SIZE_X - 2)
-                .map(|(i, c)| {
-                    let entity = world
-                        .spawn((
-                            LogCharacter {
-                                entry_index,
-                                character_index: i,
-                            },
-                            SpatialBundle::default(),
-                            GameSprite::Text(c),
-                        ))
-                        .id();
-                    if let Some(tint) = &self.1 {
-                        world.entity_mut(entity).insert(tint.clone());
-                    }
-                    entity
-                })
-                .collect();
             log.entries.push(self.0.clone());
-            log.entities.push(entities);
+            let text = world.spawn_empty().id();
+            SpawnText {
+                text: AsciiText {
+                    text: self.0,
+                    line_length: LOG_SIZE_X - 2,
+                },
+                tint: self.1,
+                entity: Some(text),
+                position: Vec3::new(
+                    (GRID_SIZE_X + 1) as f32 * TILE_SIZE,
+                    (GRID_SIZE_Y as f32 - entry_index as f32 - 2.) * TILE_SIZE,
+                    500.0,
+                ),
+            }
+            .apply(world);
+            log.entities.push(text);
         })
     }
 }
 
 pub fn lock_to_log(
     mut commands: Commands,
-    mut characters: Query<&mut Transform, With<LogCharacter>>,
+    mut characters: Query<&mut Transform, With<AsciiText>>,
     log: Res<Log>,
 ) {
     let mut row = LOG_SIZE_Y as isize - 2;
-    for (r, (i, entry)) in log.entries.iter().enumerate().rev().enumerate() {
+    for (r, entity) in log.entities.iter().rev().enumerate() {
         row -= 1;
-        for (j, _char) in entry.chars().enumerate() {
-            let Some(entity) = log.entities[i].get(j) else {
-                break;
-            };
-            if row >= 0 {
-                if let Ok(mut transform) = characters.get_mut(*entity) {
-                    transform.translation = Vec3::new(
-                        (GRID_SIZE_X + j + 1) as f32 * TILE_SIZE,
-                        (GRID_SIZE_Y as f32 - r as f32 - 2.) * TILE_SIZE,
-                        500.0,
-                    );
-                }
-            } else {
-                // PERF this sux
-                if characters.get(*entity).is_ok() {
-                    commands.entity(*entity).despawn_recursive();
-                }
+        if row >= 0 {
+            if let Ok(mut transform) = characters.get_mut(*entity) {
+                transform.translation = Vec3::new(
+                    (GRID_SIZE_X + 1) as f32 * TILE_SIZE,
+                    (GRID_SIZE_Y as f32 - r as f32 - 2.) * TILE_SIZE,
+                    500.0,
+                );
+            }
+        } else {
+            // PERF this sux
+            if characters.get(*entity).is_ok() {
+                commands.entity(*entity).despawn_recursive();
             }
         }
     }

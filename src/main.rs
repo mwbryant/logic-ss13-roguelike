@@ -6,8 +6,10 @@ pub mod log;
 mod menu;
 pub mod player;
 pub mod status_bar;
+mod text;
 pub mod wfc;
 
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::KeyCode::{P, X};
 use bevy::prelude::*;
@@ -32,7 +34,18 @@ pub const TILE_SIZE: f32 = 9.0;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()).build())
+        .add_plugins(
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        present_mode: bevy::window::PresentMode::Mailbox,
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .build(),
+        )
         .add_plugins(RngPlugin::default().with_rng_seed(0))
         .insert_resource(ClearColor(Color::rgb(0.000001, 0.000001, 0.000001)))
         .add_plugins((
@@ -44,6 +57,8 @@ fn main() {
         .add_plugins(
             WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
         )
+        .add_plugins(LogDiagnosticsPlugin::default())
+        .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .init_resource::<WfcSettings>()
         .register_type::<WfcSettings>()
         .add_systems(Startup, (spawn_player, setup, setup_log, setup_status_bar))
