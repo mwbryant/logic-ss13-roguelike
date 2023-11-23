@@ -1,13 +1,65 @@
-use bevy::prelude::*;
+use bevy::{ecs::system::Command, prelude::*};
 
 use crate::{
-    graphics::{BorderDirection, GameSprite},
+    graphics::{BorderDirection, GameSprite, TintOverride},
     grid::{GRID_SIZE_X, GRID_SIZE_Y},
-    SCREEN_SIZE_Y, TILE_SIZE,
+    player::{self, Player},
+    text::{AsciiText, SpawnText},
+    Hands, SCREEN_SIZE_Y, TILE_SIZE,
 };
 
 pub const STATUS_SIZE_X: usize = GRID_SIZE_X + 1;
 pub const STATUS_SIZE_Y: usize = SCREEN_SIZE_Y - GRID_SIZE_Y;
+
+pub struct UpdateStatusBar;
+
+impl Command for UpdateStatusBar {
+    fn apply(self, world: &mut World) {
+        world.resource_scope(|mut world, mut bar: Mut<StatusBar>| {
+            for entity in bar.contents.drain(..) {
+                world.entity_mut(entity).despawn_recursive();
+            }
+            let Ok(player_hands) = world
+                .query_filtered::<&Hands, With<Player>>()
+                .get_single(&world)
+                .cloned()
+            else {
+                return;
+            };
+            for (i, hand) in player_hands.hands.iter().cloned().enumerate() {
+                let mut text = "Empty".to_string();
+                if let Some(Ok(name)) = hand
+                    .holding
+                    .map(|entity| world.query::<&Name>().get(&world, entity).cloned())
+                {
+                    text = name.to_string();
+                }
+                let entity = world.spawn_empty().id();
+                let tint = if i == player_hands.active.unwrap() {
+                    Some(TintOverride(Color::YELLOW))
+                } else {
+                    None
+                };
+                SpawnText {
+                    text: AsciiText {
+                        text: text.to_string(),
+                        line_length: 99,
+                    },
+                    tint,
+                    entity: Some(entity),
+                    position: Vec3::new(TILE_SIZE, (-(i as f32) - 2.0) * TILE_SIZE, 500.0),
+                }
+                .apply(&mut world);
+                bar.contents.push(entity);
+            }
+        });
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct StatusBar {
+    contents: Vec<Entity>,
+}
 
 pub fn setup_status_bar(mut commands: Commands) {
     use BorderDirection::*;

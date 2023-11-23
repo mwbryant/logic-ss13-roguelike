@@ -9,6 +9,7 @@ use wfc_image::*;
 
 use crate::grid::{GRID_SIZE_X, GRID_SIZE_Y};
 use crate::log::AddToLog;
+use crate::status_bar::UpdateStatusBar;
 
 #[derive(Reflect, Resource, InspectorOptions)]
 #[reflect(Resource, InspectorOptions)]
@@ -62,6 +63,7 @@ pub fn image_to_text(image: DynamicImage, output_path: &str) -> io::Result<()> {
 pub fn wfc(mut commands: Commands, input: Res<Input<KeyCode>>, settings: Res<WfcSettings>) {
     if input.just_pressed(KeyCode::Space) {
         commands.add(AddToLog("Generated".to_string(), None));
+        commands.add(UpdateStatusBar);
         let orientation = &orientation::ALL;
         let input_image = text_to_image("assets/input.txt").unwrap();
 

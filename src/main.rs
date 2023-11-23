@@ -25,7 +25,7 @@ use interactable::{
 use log::{lock_to_log, setup_log, Log};
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
 use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
-use status_bar::setup_status_bar;
+use status_bar::{setup_status_bar, StatusBar, UpdateStatusBar};
 use wfc::{wfc, WfcSettings};
 
 pub const SCREEN_SIZE_X: usize = 85;
@@ -66,6 +66,7 @@ fn main() {
         .add_event::<PlayerInteract>()
         .add_systems(PostUpdate, (update_sprites,))
         .init_resource::<Log>()
+        .init_resource::<StatusBar>()
         .add_systems(
             Update,
             (
@@ -88,7 +89,7 @@ fn main() {
         .run();
 }
 
-#[derive(Component, Debug, Default)]
+#[derive(Component, Debug, Default, Clone)]
 pub struct Hands {
     hands: Vec<Hand>,
     active: Option<usize>,
@@ -98,7 +99,8 @@ pub struct Hands {
 pub struct Floor;
 
 impl Hands {
-    pub fn swap_active(&mut self) {
+    pub fn swap_active(&mut self, commands: &mut Commands) {
+        commands.add(UpdateStatusBar);
         self.active = self.active.map(|index| (index + 1) % self.hands.len());
     }
 
@@ -106,7 +108,8 @@ impl Hands {
         self.active.map(|index| &self.hands[index])
     }
 
-    pub fn pickup(&mut self, entity: Entity) -> bool {
+    pub fn pickup(&mut self, entity: Entity, commands: &mut Commands) -> bool {
+        commands.add(UpdateStatusBar);
         self.active
             .and_then(|idx| self.hands.get_mut(idx))
             .filter(|hand| hand.holding.is_none())
@@ -132,8 +135,9 @@ impl Hands {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Hand {
+    // TODO must be named
     pub holding: Option<Entity>,
 }
 
@@ -216,13 +220,18 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
             )
         })
     }));
+    commands.add(UpdateStatusBar);
 }
 
-fn update_active_hand(mut player: Query<&mut Hands, With<Player>>, keyboard: Res<Input<KeyCode>>) {
+fn update_active_hand(
+    mut commands: Commands,
+    mut player: Query<&mut Hands, With<Player>>,
+    keyboard: Res<Input<KeyCode>>,
+) {
     if keyboard.just_pressed(X) {
         let Ok(mut hands) = player.get_single_mut() else {
             return;
         };
-        hands.swap_active();
+        hands.swap_active(&mut commands);
     }
 }

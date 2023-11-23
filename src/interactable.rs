@@ -6,6 +6,7 @@ use crate::{
     log::AddToLog,
     menu::{CentralMenu, CloseMenu, MenuRedraw, OpenMenu},
     player::{Player, PlayerInteract},
+    status_bar::UpdateStatusBar,
     Hands, Tool,
 };
 
@@ -64,12 +65,11 @@ pub fn vending_machine_menu(
             let mut hands = player_hand.single_mut();
             if hands.can_pickup() {
                 info!("Got screwdriver");
-                commands.add(AddToLog(
-                    "Got screwdriver long strin gtest".to_string(),
-                    None,
-                ));
-                let entity = commands.spawn(Tool::Screwdriver).id();
-                hands.pickup(entity);
+                commands.add(AddToLog("Got screwdriver".to_string(), None));
+                let entity = commands
+                    .spawn((Tool::Screwdriver, Name::new("Screwdriver")))
+                    .id();
+                hands.pickup(entity, &mut commands);
             }
 
             close_menu.send(CloseMenu);
