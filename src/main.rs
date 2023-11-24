@@ -17,9 +17,9 @@ use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
-use graphics::{setup, update_sprites, GameSprite, Impassable};
+use graphics::{setup, update_sprites, GameSprite, Impassable, TintOverride};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
-use hands::{GiveItem, Hands, handle_give_item};
+use hands::{handle_give_item, GiveItem, Hands};
 use interactable::{
     player_interact, update_vending_machine_menu_graphics, vending_machine_menu, Interactable,
     VendingMachine,
@@ -70,6 +70,8 @@ fn main() {
         .add_systems(PostUpdate, (update_sprites,))
         .init_resource::<Log>()
         .init_resource::<StatusBar>()
+        // please use schedules
+        .add_systems(First, vending_machine_menu.run_if(menu_is_open()))
         .add_systems(
             Update,
             (
@@ -77,7 +79,6 @@ fn main() {
                 update_active_hand,
                 handle_give_item,
                 move_player.run_if(not(menu_is_open())),
-                vending_machine_menu.run_if(menu_is_open()),
                 update_vending_machine_menu_graphics.run_if(on_event::<MenuRedraw>()),
                 wfc,
             ),
@@ -166,6 +167,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
                 Name::new("Screwdriver"),
                 LockToGrid,
                 GameSprite::Text('s'),
+                TintOverride(Color::GREEN),
                 SpatialBundle::HIDDEN_IDENTITY,
                 Floor,
             ))
@@ -176,6 +178,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
                 Name::new("Lighter"),
                 LockToGrid,
                 GameSprite::Text('l'),
+                TintOverride(Color::ORANGE_RED),
                 SpatialBundle::HIDDEN_IDENTITY,
                 Floor,
             ))
@@ -186,6 +189,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
                 Name::new("Cigarette"),
                 GameSprite::Text('c'),
                 LockToGrid,
+                TintOverride(Color::WHITE),
                 SpatialBundle::HIDDEN_IDENTITY,
                 Floor,
             ))

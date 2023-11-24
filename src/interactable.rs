@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     graphics::TintOverride,
     grid::{Grid, GridLocation},
-    hands::{GiveItem, Hands},
+    hands::GiveItem,
     log::AddToLog,
     menu::{CentralMenu, CloseMenu, MenuRedraw, OpenMenu},
     player::{Player, PlayerInteract},
@@ -48,7 +48,8 @@ pub fn update_vending_machine_menu_graphics(
 pub fn vending_machine_menu(
     mut commands: Commands,
     menu: Res<CentralMenu>,
-    mut machines: Query<(&mut VendingMachine, &GridLocation)>,
+    player: Query<&GridLocation, With<Player>>,
+    mut machines: Query<&mut VendingMachine>,
     input: Res<Input<KeyCode>>,
     mut close_menu: EventWriter<CloseMenu>,
     mut redraw_menu: EventWriter<MenuRedraw>,
@@ -56,18 +57,18 @@ pub fn vending_machine_menu(
     names: Query<&Name>,
 ) {
     // TODO remove unwrap
-    if let Ok((mut machine, location)) = machines.get_mut(menu.owner.unwrap()) {
+    if let Ok(mut machine) = machines.get_mut(menu.owner.unwrap()) {
         if input.just_pressed(KeyCode::Return) {
             let selection = machine.selection;
+            let player_location = player.single();
             let entity = machine.options.remove(selection);
             let name = names.get(entity).unwrap();
             commands.add(AddToLog(format!("Dispensed {}", name).to_string(), None));
             machine.selection = 0;
 
-            commands.entity(entity).insert((
-                GridLocation::new(location.x as u32, location.y as u32 + 1),
-                Visibility::Visible,
-            ));
+            commands
+                .entity(entity)
+                .insert((player_location.clone(), Visibility::Visible));
             give_item.send(GiveItem {
                 receiver: None,
                 item: entity,
