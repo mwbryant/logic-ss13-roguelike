@@ -2,11 +2,11 @@ use bevy::prelude::*;
 
 use crate::{
     graphics::TintOverride,
-    grid::Grid,
+    grid::{Grid, GridLocation},
+    hands::{GiveItem, Hands},
     log::AddToLog,
     menu::{CentralMenu, CloseMenu, MenuRedraw, OpenMenu},
     player::{Player, PlayerInteract},
-    Hands,
 };
 
 #[derive(Component, Default)]
@@ -48,25 +48,30 @@ pub fn update_vending_machine_menu_graphics(
 pub fn vending_machine_menu(
     mut commands: Commands,
     menu: Res<CentralMenu>,
-    mut machines: Query<&mut VendingMachine>,
+    mut machines: Query<(&mut VendingMachine, &GridLocation)>,
     input: Res<Input<KeyCode>>,
-    mut player_hand: Query<&mut Hands, With<Player>>,
     mut close_menu: EventWriter<CloseMenu>,
     mut redraw_menu: EventWriter<MenuRedraw>,
+    mut give_item: EventWriter<GiveItem>,
     names: Query<&Name>,
 ) {
     // TODO remove unwrap
-    if let Ok(mut machine) = machines.get_mut(menu.owner.unwrap()) {
+    if let Ok((mut machine, location)) = machines.get_mut(menu.owner.unwrap()) {
         if input.just_pressed(KeyCode::Return) {
-            let mut hands = player_hand.single_mut();
-            if hands.can_pickup() {
-                let selection = machine.selection;
-                let entity = machine.options.remove(selection);
-                let name = names.get(entity).unwrap();
-                commands.add(AddToLog(format!("Got {}", name).to_string(), None));
-                machine.selection = 0;
-                hands.pickup(entity, &mut commands);
-            }
+            let selection = machine.selection;
+            let entity = machine.options.remove(selection);
+            let name = names.get(entity).unwrap();
+            commands.add(AddToLog(format!("Dispensed {}", name).to_string(), None));
+            machine.selection = 0;
+
+            commands.entity(entity).insert((
+                GridLocation::new(location.x as u32, location.y as u32 + 1),
+                Visibility::Visible,
+            ));
+            give_item.send(GiveItem {
+                receiver: None,
+                item: entity,
+            });
 
             close_menu.send(CloseMenu);
         }

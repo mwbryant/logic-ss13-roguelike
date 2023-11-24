@@ -3,9 +3,10 @@ use bevy::{ecs::system::Command, prelude::*};
 use crate::{
     graphics::{BorderDirection, GameSprite, TintOverride},
     grid::{GRID_SIZE_X, GRID_SIZE_Y},
+    hands::Hands,
     player::Player,
     text::{AsciiText, SpawnText},
-    Hands, SCREEN_SIZE_Y, TILE_SIZE,
+    SCREEN_SIZE_Y, TILE_SIZE,
 };
 
 pub const STATUS_SIZE_X: usize = GRID_SIZE_X + 1;
@@ -47,10 +48,18 @@ impl Command for UpdateStatusBar {
                     },
                     tint,
                     entity: Some(entity),
-                    position: Vec3::new(TILE_SIZE, (-(i as f32) - 2.0) * TILE_SIZE, 500.0),
+                    position: Vec3::new(TILE_SIZE * 3.0, (-(i as f32) - 2.0) * TILE_SIZE, 500.0),
                 }
                 .apply(&mut world);
                 bar.contents.push(entity);
+                if let Some(item) = hand.holding {
+                    let mut transform = world
+                        .query::<&mut Transform>()
+                        .get_mut(world, item)
+                        .unwrap();
+                    transform.translation =
+                        Vec3::new(TILE_SIZE * 1.0, (-(i as f32) - 2.0) * TILE_SIZE, 500.0);
+                }
             }
         });
     }

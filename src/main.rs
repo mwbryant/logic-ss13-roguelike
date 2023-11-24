@@ -1,6 +1,7 @@
 #![allow(clippy::type_complexity)]
 pub mod graphics;
 pub mod grid;
+mod hands;
 pub mod interactable;
 pub mod log;
 mod menu;
@@ -11,20 +12,21 @@ pub mod wfc;
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
-use bevy::prelude::KeyCode::{P, X};
+use bevy::prelude::KeyCode::P;
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
 use graphics::{setup, update_sprites, GameSprite, Impassable};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
+use hands::{GiveItem, Hands, handle_give_item};
 use interactable::{
     player_interact, update_vending_machine_menu_graphics, vending_machine_menu, Interactable,
     VendingMachine,
 };
 use log::{lock_to_log, setup_log, Log};
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
-use player::{move_player, Player, PlayerInteract, PlayerTookTurn};
+use player::{move_player, update_active_hand, Player, PlayerInteract, PlayerTookTurn};
 use status_bar::{setup_status_bar, StatusBar, UpdateStatusBar};
 use wfc::{wfc, WfcSettings};
 
@@ -64,6 +66,7 @@ fn main() {
         .add_systems(Startup, (spawn_player, setup, setup_log, setup_status_bar))
         .add_event::<PlayerTookTurn>()
         .add_event::<PlayerInteract>()
+        .add_event::<GiveItem>()
         .add_systems(PostUpdate, (update_sprites,))
         .init_resource::<Log>()
         .init_resource::<StatusBar>()
@@ -72,6 +75,7 @@ fn main() {
             (
                 print_debug,
                 update_active_hand,
+                handle_give_item,
                 move_player.run_if(not(menu_is_open())),
                 vending_machine_menu.run_if(menu_is_open()),
                 update_vending_machine_menu_graphics.run_if(on_event::<MenuRedraw>()),
@@ -89,57 +93,8 @@ fn main() {
         .run();
 }
 
-#[derive(Component, Debug, Default, Clone)]
-pub struct Hands {
-    hands: Vec<Hand>,
-    active: Option<usize>,
-}
-
 #[derive(Component, Debug, Default)]
 pub struct Floor;
-
-impl Hands {
-    pub fn swap_active(&mut self, commands: &mut Commands) {
-        commands.add(UpdateStatusBar);
-        self.active = self.active.map(|index| (index + 1) % self.hands.len());
-    }
-
-    pub fn get_active(&self) -> Option<&Hand> {
-        self.active.map(|index| &self.hands[index])
-    }
-
-    pub fn pickup(&mut self, entity: Entity, commands: &mut Commands) -> bool {
-        commands.add(UpdateStatusBar);
-        self.active
-            .and_then(|idx| self.hands.get_mut(idx))
-            .filter(|hand| hand.holding.is_none())
-            .map(|hand| {
-                hand.holding = Some(entity);
-                true
-            })
-            .unwrap_or(false)
-    }
-
-    pub fn can_pickup(&self) -> bool {
-        self.active
-            .and_then(|idx| self.hands.get(idx))
-            .map(|hand| hand.holding.is_none())
-            .unwrap_or(false)
-    }
-
-    pub fn human_hands() -> Self {
-        Self {
-            hands: vec![Hand::default(), Hand::default()],
-            active: Some(0),
-        }
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct Hand {
-    // TODO must be named
-    pub holding: Option<Entity>,
-}
 
 #[derive(Component)]
 pub enum Tool {
@@ -206,10 +161,35 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
     }
     let machine = vec![
         commands
-            .spawn((Tool::Screwdriver, Name::new("Screwdriver")))
+            .spawn((
+                Tool::Screwdriver,
+                Name::new("Screwdriver"),
+                LockToGrid,
+                GameSprite::Text('s'),
+                SpatialBundle::HIDDEN_IDENTITY,
+                Floor,
+            ))
             .id(),
-        commands.spawn((Tool::Lighter, Name::new("Lighter"))).id(),
-        commands.spawn((Cigarette, Name::new("Cigarette"))).id(),
+        commands
+            .spawn((
+                Tool::Lighter,
+                Name::new("Lighter"),
+                LockToGrid,
+                GameSprite::Text('l'),
+                SpatialBundle::HIDDEN_IDENTITY,
+                Floor,
+            ))
+            .id(),
+        commands
+            .spawn((
+                Cigarette,
+                Name::new("Cigarette"),
+                GameSprite::Text('c'),
+                LockToGrid,
+                SpatialBundle::HIDDEN_IDENTITY,
+                Floor,
+            ))
+            .id(),
     ];
     commands.spawn((
         GridLocation::new(1, 3),
@@ -235,17 +215,4 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
         })
     }));
     commands.add(UpdateStatusBar);
-}
-
-fn update_active_hand(
-    mut commands: Commands,
-    mut player: Query<&mut Hands, With<Player>>,
-    keyboard: Res<Input<KeyCode>>,
-) {
-    if keyboard.just_pressed(X) {
-        let Ok(mut hands) = player.get_single_mut() else {
-            return;
-        };
-        hands.swap_active(&mut commands);
-    }
 }

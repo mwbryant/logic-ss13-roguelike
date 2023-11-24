@@ -162,9 +162,18 @@ fn update_connected_components<T: Component>(
 fn remove_from_grid<T: Component>(
     mut grid: ResMut<Grid<T>>,
     mut query: RemovedComponents<T>,
+    mut query2: RemovedComponents<GridLocation>,
     mut dirty: EventWriter<DirtyGridEvent<T>>,
 ) {
     for removed_entity in query.read() {
+        // Search for entity
+        let removed = grid.iter().find(|(entity, _)| *entity == removed_entity);
+        if let Some((_, location)) = removed {
+            dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+            grid[&location] = None;
+        }
+    }
+    for removed_entity in query2.read() {
         // Search for entity
         let removed = grid.iter().find(|(entity, _)| *entity == removed_entity);
         if let Some((_, location)) = removed {
@@ -212,9 +221,23 @@ fn update_in_grid<T: Component>(
 fn add_to_grid<T: Component>(
     mut grid: ResMut<Grid<T>>,
     query: Query<(Entity, &GridLocation), Added<T>>,
+    query2: Query<(Entity, &GridLocation), (With<T>, Added<GridLocation>)>,
     mut dirty: EventWriter<DirtyGridEvent<T>>,
 ) {
     for (entity, location) in &query {
+        if Grid::<()>::valid_index(location) {
+            if let Some(ref mut existing) = &mut grid[location] {
+                if !existing.contains(&entity) {
+                    dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+                    existing.push(entity);
+                }
+            } else {
+                dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
+                grid[location] = Some(vec![entity]);
+            }
+        }
+    }
+    for (entity, location) in &query2 {
         if Grid::<()>::valid_index(location) {
             if let Some(ref mut existing) = &mut grid[location] {
                 if !existing.contains(&entity) {

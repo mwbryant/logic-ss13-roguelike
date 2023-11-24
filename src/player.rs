@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     graphics::Impassable,
     grid::{Grid, GridLocation},
+    hands::Hands,
     interactable::Interactable,
 };
 
@@ -47,5 +48,18 @@ pub fn move_player(
             interact_event.send(PlayerInteract(point.into()));
             return;
         }
+    }
+}
+
+pub fn update_active_hand(
+    mut commands: Commands,
+    mut player: Query<&mut Hands, With<Player>>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if keyboard.just_pressed(KeyCode::X) {
+        let Ok(mut hands) = player.get_single_mut() else {
+            return;
+        };
+        hands.swap_active(&mut commands);
     }
 }
