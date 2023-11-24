@@ -3,7 +3,7 @@ use bevy::{ecs::system::Command, prelude::*};
 use crate::{
     graphics::{BorderDirection, GameSprite, TintOverride},
     grid::{GRID_SIZE_X, GRID_SIZE_Y},
-    player::{self, Player},
+    player::Player,
     text::{AsciiText, SpawnText},
     Hands, SCREEN_SIZE_Y, TILE_SIZE,
 };

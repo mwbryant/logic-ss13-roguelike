@@ -144,7 +144,11 @@ pub struct Hand {
 #[derive(Component)]
 pub enum Tool {
     Screwdriver,
+    Lighter,
 }
+
+#[derive(Component)]
+pub struct Cigarette;
 
 fn npc_wander(
     mut locations: Query<(Entity, &mut GridLocation, &mut RngComponent), With<Npc>>,
@@ -200,11 +204,21 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
             SpatialBundle::default(),
         ));
     }
+    let machine = vec![
+        commands
+            .spawn((Tool::Screwdriver, Name::new("Screwdriver")))
+            .id(),
+        commands.spawn((Tool::Lighter, Name::new("Lighter"))).id(),
+        commands.spawn((Cigarette, Name::new("Cigarette"))).id(),
+    ];
     commands.spawn((
         GridLocation::new(1, 3),
         LockToGrid,
         Interactable::VendingMachine,
-        VendingMachine::default(),
+        VendingMachine {
+            selection: 0,
+            options: machine,
+        },
         Impassable,
         GameSprite::VendingMachine,
         SpatialBundle::default(),

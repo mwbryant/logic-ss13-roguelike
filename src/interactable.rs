@@ -6,8 +6,7 @@ use crate::{
     log::AddToLog,
     menu::{CentralMenu, CloseMenu, MenuRedraw, OpenMenu},
     player::{Player, PlayerInteract},
-    status_bar::UpdateStatusBar,
-    Hands, Tool,
+    Hands,
 };
 
 #[derive(Component, Default)]
@@ -20,7 +19,8 @@ pub enum Interactable {
 pub struct VendingMachine {
     // Wiring inside if panel is open
     // every ship has a master wiring diagram somewhere
-    selection: usize,
+    pub selection: usize,
+    pub options: Vec<Entity>,
 }
 
 pub fn update_vending_machine_menu_graphics(
@@ -28,21 +28,17 @@ pub fn update_vending_machine_menu_graphics(
     mut menu: ResMut<CentralMenu>,
     machines: Query<&VendingMachine>,
     mut event: EventReader<MenuRedraw>,
+    names: Query<&Name>,
 ) {
     for _ev in event.read() {
-        let rows = [
-            "> Screwdriver",
-            "> Screwdriver",
-            "> Screwdriver",
-            "> Screwdriver",
-        ];
         menu.clear_menu(&mut commands);
         if let Ok(machine) = machines.get(menu.owner.unwrap()) {
-            for (i, row) in rows.iter().enumerate() {
+            for (i, entry) in machine.options.iter().enumerate() {
+                let name = names.get(*entry).unwrap();
                 if i == machine.selection {
-                    menu.set_row_text(&mut commands, row, i, Some(TintOverride(Color::YELLOW)));
+                    menu.set_row_text(&mut commands, name, i, Some(TintOverride(Color::YELLOW)));
                 } else {
-                    menu.set_row_text(&mut commands, row, i, None);
+                    menu.set_row_text(&mut commands, name, i, None);
                 }
             }
         }
@@ -57,18 +53,18 @@ pub fn vending_machine_menu(
     mut player_hand: Query<&mut Hands, With<Player>>,
     mut close_menu: EventWriter<CloseMenu>,
     mut redraw_menu: EventWriter<MenuRedraw>,
+    names: Query<&Name>,
 ) {
     // TODO remove unwrap
     if let Ok(mut machine) = machines.get_mut(menu.owner.unwrap()) {
         if input.just_pressed(KeyCode::Return) {
-            info!("Selected {:?}", machine.selection);
             let mut hands = player_hand.single_mut();
             if hands.can_pickup() {
-                info!("Got screwdriver");
-                commands.add(AddToLog("Got screwdriver".to_string(), None));
-                let entity = commands
-                    .spawn((Tool::Screwdriver, Name::new("Screwdriver")))
-                    .id();
+                let selection = machine.selection;
+                let entity = machine.options.remove(selection);
+                let name = names.get(entity).unwrap();
+                commands.add(AddToLog(format!("Got {}", name).to_string(), None));
+                machine.selection = 0;
                 hands.pickup(entity, &mut commands);
             }
 

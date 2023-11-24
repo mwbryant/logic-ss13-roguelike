@@ -5,7 +5,7 @@ use crate::{grid::GRID_SIZE_Y, SCREEN_SIZE_X, SCREEN_SIZE_Y, TILE_SIZE};
 #[derive(Component, Default, Clone, Copy)]
 pub struct Impassable;
 
-#[derive(Component, Default, Hash, PartialEq, Eq)]
+#[derive(Component, Default, Hash, PartialEq, Eq, Debug)]
 pub enum GameSprite {
     #[default]
     Player,
@@ -18,7 +18,7 @@ pub enum GameSprite {
     Border(BorderDirection),
 }
 
-#[derive(Component, Hash, PartialEq, Eq)]
+#[derive(Component, Hash, PartialEq, Eq, Debug)]
 pub enum BorderDirection {
     Top,
     Bottom,
@@ -199,7 +199,7 @@ pub fn setup(
         ),
     );
 
-    let alphabet = ('a'..='z').chain('A'..='Z').chain(" ><_-=+:;".chars());
+    let alphabet = ('a'..='z').chain('A'..='Z').chain(" ><_-=+:;\"".chars());
 
     for c in alphabet {
         map.map.insert(
