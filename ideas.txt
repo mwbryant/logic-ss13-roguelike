@@ -3,3 +3,6 @@ make money
 
 loot stations is the first loop
 if you take too long then the govt arrives
+
+pregen ship hulls but proc fill interiour based on history
+spelunky style?

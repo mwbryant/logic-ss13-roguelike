@@ -5,6 +5,7 @@ use crate::{
     grid::{Grid, GridLocation},
     hands::Hands,
     interactable::Interactable,
+    usuable::PlayerUsed,
 };
 
 #[derive(Event)]
@@ -61,5 +62,20 @@ pub fn update_active_hand(
             return;
         };
         hands.swap_active(&mut commands);
+    }
+}
+
+pub fn use_active_hand(
+    player: Query<&Hands, With<Player>>,
+    mut event: EventWriter<PlayerUsed>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if keyboard.just_pressed(KeyCode::Z) {
+        let Ok(hands) = player.get_single() else {
+            return;
+        };
+        if let Some(entity) = hands.get_active_held() {
+            event.send(PlayerUsed(entity));
+        }
     }
 }

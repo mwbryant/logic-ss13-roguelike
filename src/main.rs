@@ -8,6 +8,7 @@ mod menu;
 pub mod player;
 pub mod status_bar;
 mod text;
+mod usuable;
 pub mod wfc;
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
@@ -26,8 +27,11 @@ use interactable::{
 };
 use log::{lock_to_log, setup_log, Log};
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
-use player::{move_player, update_active_hand, Player, PlayerInteract, PlayerTookTurn};
+use player::{
+    move_player, update_active_hand, use_active_hand, Player, PlayerInteract, PlayerTookTurn,
+};
 use status_bar::{setup_status_bar, StatusBar, UpdateStatusBar};
+use usuable::{use_lighter, Lighter, PlayerUsed};
 use wfc::{wfc, WfcSettings};
 
 pub const SCREEN_SIZE_X: usize = 85;
@@ -67,6 +71,7 @@ fn main() {
         .add_event::<PlayerTookTurn>()
         .add_event::<PlayerInteract>()
         .add_event::<GiveItem>()
+        .add_event::<PlayerUsed>()
         .add_systems(PostUpdate, (update_sprites,))
         .init_resource::<Log>()
         .init_resource::<StatusBar>()
@@ -78,7 +83,9 @@ fn main() {
                 print_debug,
                 update_active_hand,
                 handle_give_item,
+                use_lighter,
                 move_player.run_if(not(menu_is_open())),
+                use_active_hand,
                 update_vending_machine_menu_graphics.run_if(on_event::<MenuRedraw>()),
                 wfc,
             ),
@@ -100,7 +107,6 @@ pub struct Floor;
 #[derive(Component)]
 pub enum Tool {
     Screwdriver,
-    Lighter,
 }
 
 #[derive(Component)]
@@ -174,7 +180,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
             .id(),
         commands
             .spawn((
-                Tool::Lighter,
+                Lighter { active: false },
                 Name::new("Lighter"),
                 LockToGrid,
                 GameSprite::Text('l'),

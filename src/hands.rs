@@ -46,6 +46,10 @@ impl Hands {
         self.active.map(|index| &self.hands[index])
     }
 
+    pub fn get_active_held(&self) -> Option<Entity> {
+        self.get_active().map(|hand| hand.holding).flatten()
+    }
+
     fn pickup(&mut self, entity: Entity) -> bool {
         self.active
             .and_then(|idx| self.hands.get_mut(idx))
