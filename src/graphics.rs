@@ -47,7 +47,7 @@ pub fn update_sprites(
             Option<&mut TextureAtlasSprite>,
             Option<&TintOverride>,
         ),
-        Changed<GameSprite>,
+        Or<(Changed<GameSprite>, Changed<TintOverride>)>,
     >,
     map: Res<SpriteMap>,
 ) {

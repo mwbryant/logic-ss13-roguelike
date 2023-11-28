@@ -5,7 +5,7 @@ use crate::{
     grid::{Grid, GridLocation},
     hands::Hands,
     interactable::Interactable,
-    usuable::PlayerUsed,
+    usuable::{PlayerCombined, PlayerUsed}, log::AddToLog,
 };
 
 #[derive(Event)]
@@ -76,6 +76,28 @@ pub fn use_active_hand(
         };
         if let Some(entity) = hands.get_active_held() {
             event.send(PlayerUsed(entity));
+        }
+    }
+}
+
+// Make click based
+pub fn use_active_hand_on_inactive(
+    mut commands: Commands,
+    player: Query<&Hands, With<Player>>,
+    mut event: EventWriter<PlayerCombined>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if keyboard.just_pressed(KeyCode::C) {
+        let Ok(hands) = player.get_single() else {
+            return;
+        };
+        if let Some(entity) = hands.get_active_held() {
+            // TODO multihand support
+            let next_hand = hands.active.map(|index| (index + 1) % hands.hands.len());
+            if let Some(entity2) = next_hand.map(|index| hands.hands[index].holding).flatten() {
+                commands.add(AddToLog("Combined".to_string(), None));
+                event.send(PlayerCombined(entity, entity2));
+            }
         }
     }
 }

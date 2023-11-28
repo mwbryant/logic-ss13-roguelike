@@ -28,10 +28,11 @@ use interactable::{
 use log::{lock_to_log, setup_log, Log};
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
 use player::{
-    move_player, update_active_hand, use_active_hand, Player, PlayerInteract, PlayerTookTurn,
+    move_player, update_active_hand, use_active_hand, use_active_hand_on_inactive, Player,
+    PlayerInteract, PlayerTookTurn,
 };
 use status_bar::{setup_status_bar, StatusBar, UpdateStatusBar};
-use usuable::{use_lighter, Lighter, PlayerUsed};
+use usuable::{use_lighter, Lighter, PlayerCombined, PlayerUsed};
 use wfc::{wfc, WfcSettings};
 
 pub const SCREEN_SIZE_X: usize = 85;
@@ -72,6 +73,7 @@ fn main() {
         .add_event::<PlayerInteract>()
         .add_event::<GiveItem>()
         .add_event::<PlayerUsed>()
+        .add_event::<PlayerCombined>()
         .add_systems(PostUpdate, (update_sprites,))
         .init_resource::<Log>()
         .init_resource::<StatusBar>()
@@ -82,6 +84,7 @@ fn main() {
             (
                 print_debug,
                 update_active_hand,
+                use_active_hand_on_inactive,
                 handle_give_item,
                 use_lighter,
                 move_player.run_if(not(menu_is_open())),
@@ -183,8 +186,9 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
                 Lighter { active: false },
                 Name::new("Lighter"),
                 LockToGrid,
+                // TODO use a real sprite here
                 GameSprite::Text('l'),
-                TintOverride(Color::ORANGE_RED),
+                TintOverride(Color::GREEN),
                 SpatialBundle::HIDDEN_IDENTITY,
                 Floor,
             ))
