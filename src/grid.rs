@@ -170,7 +170,9 @@ fn remove_from_grid<T: Component>(
         let removed = grid.iter().find(|(entity, _)| *entity == removed_entity);
         if let Some((_, location)) = removed {
             dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
-            grid[&location] = None;
+            grid[&location]
+                .as_mut()
+                .and_then(|entities| Some(entities.retain(|grid_ent| removed_entity != *grid_ent)));
         }
     }
     for removed_entity in query2.read() {
@@ -178,7 +180,9 @@ fn remove_from_grid<T: Component>(
         let removed = grid.iter().find(|(entity, _)| *entity == removed_entity);
         if let Some((_, location)) = removed {
             dirty.send(DirtyGridEvent::<T>(location.clone(), PhantomData));
-            grid[&location] = None;
+            grid[&location]
+                .as_mut()
+                .and_then(|entities| Some(entities.retain(|grid_ent| removed_entity != *grid_ent)));
         }
     }
 }

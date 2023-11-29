@@ -11,7 +11,7 @@ mod text;
 mod usuable;
 pub mod wfc;
 
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+// use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::KeyCode::P;
 use bevy::prelude::*;
@@ -28,8 +28,9 @@ use interactable::{
 use log::{lock_to_log, setup_log, Log};
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
 use player::{
-    move_player, start_combination, update_active_hand, use_active_hand, Player, PlayerCombined,
-    PlayerInteract, PlayerTookTurn, drop_active_hand,
+    drop_active_hand, move_player, pickup_from_ground, pickup_menu, start_combination,
+    update_active_hand, update_pickup_menu_graphics, use_active_hand, Player, PlayerCombined,
+    PlayerInteract, PlayerTookTurn,
 };
 use status_bar::{setup_status_bar, StatusBar, UpdateStatusBar};
 use usuable::{use_lighter, use_lighter_on_cig, Lighter, PlayerUsed};
@@ -57,6 +58,7 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.000001, 0.000001, 0.000001)))
         .add_plugins((
             GridPlugin::<Floor>::default(),
+            GridPlugin::<Item>::default(),
             GridPlugin::<Impassable>::default(),
             GridPlugin::<Interactable>::default(),
             CentralMenuPlugin,
@@ -64,8 +66,8 @@ fn main() {
         .add_plugins(
             WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
         )
-        .add_plugins(LogDiagnosticsPlugin::default())
-        .add_plugins(FrameTimeDiagnosticsPlugin::default())
+        // .add_plugins(LogDiagnosticsPlugin::default())
+        // .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .init_resource::<WfcSettings>()
         .register_type::<WfcSettings>()
         .add_systems(Startup, (spawn_player, setup, setup_log, setup_status_bar))
@@ -78,13 +80,20 @@ fn main() {
         .init_resource::<Log>()
         .init_resource::<StatusBar>()
         // please use schedules
-        .add_systems(First, vending_machine_menu.run_if(menu_is_open()))
+        .add_systems(
+            First,
+            (
+                vending_machine_menu.run_if(menu_is_open()),
+                pickup_menu.run_if(menu_is_open()),
+            ),
+        )
         .add_systems(
             Update,
             (
                 print_debug,
                 update_active_hand,
                 handle_give_item,
+                pickup_from_ground,
                 use_lighter,
                 use_lighter_on_cig,
                 drop_active_hand,
@@ -92,6 +101,7 @@ fn main() {
                 move_player.run_if(not(menu_is_open())),
                 use_active_hand,
                 update_vending_machine_menu_graphics.run_if(on_event::<MenuRedraw>()),
+                update_pickup_menu_graphics.run_if(on_event::<MenuRedraw>()),
                 wfc,
             ),
         )
@@ -108,6 +118,9 @@ fn main() {
 
 #[derive(Component, Debug, Default)]
 pub struct Floor;
+
+#[derive(Component, Debug, Default)]
+pub struct Item;
 
 #[derive(Component)]
 pub enum Tool {
@@ -160,7 +173,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
         Impassable,
         GameSprite::Player,
         Player::default(),
-        SpatialBundle::from_transform(Transform::from_xyz(0.0,0.0, 600.0))
+        SpatialBundle::from_transform(Transform::from_xyz(0.0, 0.0, 600.0)),
     ));
     for x in 0..5 {
         commands.spawn((
@@ -183,7 +196,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
                 GameSprite::Text('s'),
                 TintOverride(Color::GREEN),
                 SpatialBundle::HIDDEN_IDENTITY,
-                Floor,
+                Item,
             ))
             .id(),
         commands
@@ -195,7 +208,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
                 GameSprite::Text('l'),
                 TintOverride(Color::GREEN),
                 SpatialBundle::HIDDEN_IDENTITY,
-                Floor,
+                Item,
             ))
             .id(),
         commands
@@ -206,7 +219,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
                 LockToGrid,
                 TintOverride(Color::WHITE),
                 SpatialBundle::HIDDEN_IDENTITY,
-                Floor,
+                Item,
             ))
             .id(),
     ];

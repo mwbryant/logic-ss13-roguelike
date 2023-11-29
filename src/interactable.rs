@@ -31,8 +31,8 @@ pub fn update_vending_machine_menu_graphics(
     names: Query<&Name>,
 ) {
     for _ev in event.read() {
-        menu.clear_menu(&mut commands);
         if let Ok(machine) = machines.get(menu.owner.unwrap()) {
+            menu.clear_menu(&mut commands);
             for (i, entry) in machine.options.iter().enumerate() {
                 let name = names.get(*entry).unwrap();
                 if i == machine.selection {
@@ -60,6 +60,10 @@ pub fn vending_machine_menu(
     if let Ok(mut machine) = machines.get_mut(menu.owner.unwrap()) {
         if input.just_pressed(KeyCode::Return) {
             let selection = machine.selection;
+            if selection >= machine.options.len() {
+                close_menu.send(CloseMenu);
+                return;
+            }
             let player_location = player.single();
             let entity = machine.options.remove(selection);
             let name = names.get(entity).unwrap();

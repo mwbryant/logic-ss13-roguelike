@@ -1,13 +1,15 @@
 use bevy::prelude::*;
 
 use crate::{
-    graphics::Impassable,
+    graphics::{Impassable, TintOverride},
     grid::{Grid, GridLocation, LockToGrid},
-    hands::Hands,
+    hands::{GiveItem, Hands},
     interactable::Interactable,
     log::AddToLog,
+    menu::{CentralMenu, CloseMenu, MenuRedraw, OpenMenu},
     status_bar::UpdateStatusBar,
     usuable::PlayerUsed,
+    Item,
 };
 #[derive(Event)]
 pub struct PlayerCombined(pub Entity, pub Entity);
@@ -110,6 +112,111 @@ pub fn drop_active_hand(
             commands.entity(entity).insert((LockToGrid, grid.clone()));
             hands.clear_active();
             commands.add(UpdateStatusBar);
+        }
+    }
+}
+
+pub fn pickup_from_ground(
+    mut commands: Commands,
+    player: Query<(&Hands, &GridLocation), With<Player>>,
+    mut give_event: EventWriter<GiveItem>,
+    mut menu_event: EventWriter<OpenMenu>,
+    grid: Res<Grid<Item>>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if keyboard.just_pressed(KeyCode::G) {
+        let Ok((hands, location)) = player.get_single() else {
+            error!("No player!");
+            return;
+        };
+        if !hands.can_pickup() {
+            info!("test");
+            return;
+        }
+        if let Some(entities) = &grid[location] {
+            info!("{:?}", entities);
+            if entities.len() == 1 {
+                commands.add(AddToLog("Picked up item".to_string(), None));
+                give_event.send(GiveItem {
+                    receiver: None,
+                    item: entities[0],
+                });
+            } else {
+                let menu = commands
+                    .spawn(PickupMenu {
+                        items: entities.clone(),
+                        selection: 0,
+                    })
+                    .id();
+                menu_event.send(OpenMenu(menu));
+            }
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct PickupMenu {
+    items: Vec<Entity>,
+    selection: usize,
+}
+
+pub fn pickup_menu(
+    mut commands: Commands,
+    menu: Res<CentralMenu>,
+    mut pickup: Query<&mut PickupMenu>,
+    input: Res<Input<KeyCode>>,
+    mut close_menu: EventWriter<CloseMenu>,
+    mut redraw_menu: EventWriter<MenuRedraw>,
+    mut give_item: EventWriter<GiveItem>,
+    names: Query<&Name>,
+) {
+    if let Ok(mut pickup) = pickup.get_mut(menu.owner.unwrap()) {
+        if input.just_pressed(KeyCode::Return) {
+            let selection = pickup.selection;
+            if selection >= pickup.items.len() {
+                close_menu.send(CloseMenu);
+                commands.entity(menu.owner.unwrap()).despawn_recursive();
+                return;
+            }
+            let entity = pickup.items[selection];
+            let name = names.get(entity).unwrap();
+            commands.add(AddToLog(format!("Picked up {}", name).to_string(), None));
+            give_item.send(GiveItem {
+                receiver: None,
+                item: entity,
+            });
+            close_menu.send(CloseMenu);
+            commands.entity(menu.owner.unwrap()).despawn_recursive();
+        }
+        if input.just_pressed(KeyCode::S) {
+            pickup.selection += 1;
+            redraw_menu.send(MenuRedraw);
+        }
+        if input.just_pressed(KeyCode::W) {
+            pickup.selection = pickup.selection.saturating_sub(1);
+            redraw_menu.send(MenuRedraw);
+        }
+    }
+}
+
+pub fn update_pickup_menu_graphics(
+    mut commands: Commands,
+    mut menu: ResMut<CentralMenu>,
+    pickup: Query<&PickupMenu>,
+    mut event: EventReader<MenuRedraw>,
+    names: Query<&Name>,
+) {
+    for _ev in event.read() {
+        if let Ok(pickup) = pickup.get(menu.owner.unwrap()) {
+            menu.clear_menu(&mut commands);
+            for (i, entry) in pickup.items.iter().enumerate() {
+                let name = names.get(*entry).unwrap();
+                if i == pickup.selection {
+                    menu.set_row_text(&mut commands, name, i, Some(TintOverride(Color::YELLOW)));
+                } else {
+                    menu.set_row_text(&mut commands, name, i, None);
+                }
+            }
         }
     }
 }
