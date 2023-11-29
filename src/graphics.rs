@@ -199,7 +199,7 @@ pub fn setup(
         ),
     );
 
-    let alphabet = ('a'..='z').chain('A'..='Z').chain(" ><_-=+:;\"".chars());
+    let alphabet = ('a'..='z').chain('A'..='Z').chain(" ><_-=+:;\"!".chars());
 
     for c in alphabet {
         map.map.insert(

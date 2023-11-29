@@ -28,11 +28,11 @@ use interactable::{
 use log::{lock_to_log, setup_log, Log};
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
 use player::{
-    move_player, update_active_hand, use_active_hand, use_active_hand_on_inactive, Player,
-    PlayerInteract, PlayerTookTurn,
+    move_player, start_combination, update_active_hand, use_active_hand, Player, PlayerCombined,
+    PlayerInteract, PlayerTookTurn, drop_active_hand,
 };
 use status_bar::{setup_status_bar, StatusBar, UpdateStatusBar};
-use usuable::{use_lighter, Lighter, PlayerCombined, PlayerUsed};
+use usuable::{use_lighter, use_lighter_on_cig, Lighter, PlayerUsed};
 use wfc::{wfc, WfcSettings};
 
 pub const SCREEN_SIZE_X: usize = 85;
@@ -84,9 +84,11 @@ fn main() {
             (
                 print_debug,
                 update_active_hand,
-                use_active_hand_on_inactive,
                 handle_give_item,
                 use_lighter,
+                use_lighter_on_cig,
+                drop_active_hand,
+                start_combination,
                 move_player.run_if(not(menu_is_open())),
                 use_active_hand,
                 update_vending_machine_menu_graphics.run_if(on_event::<MenuRedraw>()),
@@ -112,8 +114,11 @@ pub enum Tool {
     Screwdriver,
 }
 
-#[derive(Component)]
-pub struct Cigarette;
+#[derive(Component, Default)]
+pub struct Cigarette {
+    // TODO burning comp
+    burning: bool,
+}
 
 fn npc_wander(
     mut locations: Query<(Entity, &mut GridLocation, &mut RngComponent), With<Npc>>,
@@ -154,8 +159,8 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
         RngComponent::from(&mut global_rng),
         Impassable,
         GameSprite::Player,
-        Player,
-        SpatialBundle::default(),
+        Player::default(),
+        SpatialBundle::from_transform(Transform::from_xyz(0.0,0.0, 600.0))
     ));
     for x in 0..5 {
         commands.spawn((
@@ -195,7 +200,7 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
             .id(),
         commands
             .spawn((
-                Cigarette,
+                Cigarette::default(),
                 Name::new("Cigarette"),
                 GameSprite::Text('c'),
                 LockToGrid,

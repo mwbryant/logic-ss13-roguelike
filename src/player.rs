@@ -2,11 +2,15 @@ use bevy::prelude::*;
 
 use crate::{
     graphics::Impassable,
-    grid::{Grid, GridLocation},
+    grid::{Grid, GridLocation, LockToGrid},
     hands::Hands,
     interactable::Interactable,
-    usuable::{PlayerCombined, PlayerUsed}, log::AddToLog,
+    log::AddToLog,
+    status_bar::UpdateStatusBar,
+    usuable::PlayerUsed,
 };
+#[derive(Event)]
+pub struct PlayerCombined(pub Entity, pub Entity);
 
 #[derive(Event)]
 pub struct PlayerTookTurn;
@@ -14,17 +18,25 @@ pub struct PlayerTookTurn;
 #[derive(Event)]
 pub struct PlayerInteract(pub GridLocation);
 
-#[derive(Component)]
-pub struct Player;
+#[derive(Component, Default)]
+pub struct Player {
+    pub combining: Option<Entity>,
+}
+
 pub fn move_player(
-    mut player: Query<&mut GridLocation, With<Player>>,
+    mut player: Query<(&mut GridLocation, &Player)>,
     input: Res<Input<KeyCode>>,
     wall_grid: Res<Grid<Impassable>>,
     interact_grid: Res<Grid<Interactable>>,
     mut turn_event: EventWriter<PlayerTookTurn>,
     mut interact_event: EventWriter<PlayerInteract>,
 ) {
-    for mut location in &mut player {
+    for (mut location, player) in &mut player {
+        // TODO run if condition and allow player to combine with things on grid
+        if player.combining.is_some() {
+            return;
+        }
+
         let mut point = location.get_location();
 
         if input.just_pressed(KeyCode::W) {
@@ -80,23 +92,60 @@ pub fn use_active_hand(
     }
 }
 
-// Make click based
-pub fn use_active_hand_on_inactive(
+pub fn drop_active_hand(
     mut commands: Commands,
-    player: Query<&Hands, With<Player>>,
+    mut player: Query<(&mut Hands, &mut Player, &GridLocation)>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if keyboard.just_pressed(KeyCode::Q) {
+        let Ok((mut hands, mut player, grid)) = player.get_single_mut() else {
+            error!("No player!");
+            return;
+        };
+        if let Some(entity) = hands.get_active_held() {
+            if player.combining == Some(entity) {
+                player.combining = None;
+            }
+            commands.add(AddToLog("Dropping held item".to_string(), None));
+            commands.entity(entity).insert((LockToGrid, grid.clone()));
+            hands.clear_active();
+            commands.add(UpdateStatusBar);
+        }
+    }
+}
+
+// Make click based
+pub fn start_combination(
+    mut commands: Commands,
+    mut player: Query<(&Hands, &mut Player)>,
     mut event: EventWriter<PlayerCombined>,
     keyboard: Res<Input<KeyCode>>,
 ) {
     if keyboard.just_pressed(KeyCode::C) {
-        let Ok(hands) = player.get_single() else {
+        let Ok((hands, mut player)) = player.get_single_mut() else {
+            error!("No player!");
             return;
         };
-        if let Some(entity) = hands.get_active_held() {
-            // TODO multihand support
-            let next_hand = hands.active.map(|index| (index + 1) % hands.hands.len());
-            if let Some(entity2) = next_hand.map(|index| hands.hands[index].holding).flatten() {
-                commands.add(AddToLog("Combined".to_string(), None));
-                event.send(PlayerCombined(entity, entity2));
+        // TODO clean this up
+        if let Some(first) = player.combining {
+            if let Some(second) = hands.get_active_held() {
+                if first == second {
+                    player.combining = None;
+                    commands.add(AddToLog("Cancel Combination".to_string(), None));
+                    return;
+                }
+                commands.add(AddToLog("Combined with hand".to_string(), None));
+                event.send(PlayerCombined(first, second));
+                player.combining = None;
+            } else {
+                player.combining = None;
+                commands.add(AddToLog("Cancel Combination".to_string(), None));
+                return;
+            }
+        } else {
+            player.combining = hands.get_active_held();
+            if player.combining.is_some() {
+                commands.add(AddToLog("Starting Combination".to_string(), None));
             }
         }
     }

@@ -50,6 +50,10 @@ impl Hands {
         self.get_active().map(|hand| hand.holding).flatten()
     }
 
+    pub fn clear_active(&mut self) {
+        self.active.map(|index| self.hands[index].holding = None);
+    }
+
     fn pickup(&mut self, entity: Entity) -> bool {
         self.active
             .and_then(|idx| self.hands.get_mut(idx))
