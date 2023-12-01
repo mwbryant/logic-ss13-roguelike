@@ -160,6 +160,7 @@ pub struct PickupMenu {
     selection: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn pickup_menu(
     mut commands: Commands,
     menu: Res<CentralMenu>,
@@ -247,7 +248,6 @@ pub fn start_combination(
             } else {
                 player.combining = None;
                 commands.add(AddToLog("Cancel Combination".to_string(), None));
-                return;
             }
         } else {
             player.combining = hands.get_active_held();

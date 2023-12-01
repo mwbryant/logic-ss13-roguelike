@@ -47,11 +47,13 @@ impl Hands {
     }
 
     pub fn get_active_held(&self) -> Option<Entity> {
-        self.get_active().map(|hand| hand.holding).flatten()
+        self.get_active().and_then(|hand| hand.holding)
     }
 
     pub fn clear_active(&mut self) {
-        self.active.map(|index| self.hands[index].holding = None);
+        if let Some(index) = self.active {
+            self.hands[index].holding = None;
+        }
     }
 
     fn pickup(&mut self, entity: Entity) -> bool {

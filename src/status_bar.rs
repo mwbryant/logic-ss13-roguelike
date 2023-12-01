@@ -16,13 +16,13 @@ pub struct UpdateStatusBar;
 
 impl Command for UpdateStatusBar {
     fn apply(self, world: &mut World) {
-        world.resource_scope(|mut world, mut bar: Mut<StatusBar>| {
+        world.resource_scope(|world, mut bar: Mut<StatusBar>| {
             for entity in bar.contents.drain(..) {
                 world.entity_mut(entity).despawn_recursive();
             }
             let Ok(player_hands) = world
                 .query_filtered::<&Hands, With<Player>>()
-                .get_single(&world)
+                .get_single(world)
                 .cloned()
             else {
                 return;
@@ -31,7 +31,7 @@ impl Command for UpdateStatusBar {
                 let mut text = "Empty".to_string();
                 if let Some(Ok(name)) = hand
                     .holding
-                    .map(|entity| world.query::<&Name>().get(&world, entity).cloned())
+                    .map(|entity| world.query::<&Name>().get(world, entity).cloned())
                 {
                     text = name.to_string();
                 }
@@ -50,7 +50,7 @@ impl Command for UpdateStatusBar {
                     entity: Some(entity),
                     position: Vec3::new(TILE_SIZE * 3.0, (-(i as f32) - 2.0) * TILE_SIZE, 500.0),
                 }
-                .apply(&mut world);
+                .apply(world);
                 bar.contents.push(entity);
                 if let Some(item) = hand.holding {
                     let mut transform = world

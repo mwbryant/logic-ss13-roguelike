@@ -45,6 +45,7 @@ pub fn update_vending_machine_menu_graphics(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn vending_machine_menu(
     mut commands: Commands,
     menu: Res<CentralMenu>,
