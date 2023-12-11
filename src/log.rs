@@ -4,11 +4,11 @@ use crate::{
     graphics::{BorderDirection, GameSprite, TintOverride},
     grid::{GRID_SIZE_X, GRID_SIZE_Y},
     text::{AsciiText, SpawnText},
-    SCREEN_SIZE_X, SCREEN_SIZE_Y, TILE_SIZE,
+    SCREEN_TILE_SIZE_X, SCREEN_TILE_SIZE_Y, TILE_SIZE,
 };
 
-pub const LOG_SIZE_X: usize = SCREEN_SIZE_X - GRID_SIZE_X;
-pub const LOG_SIZE_Y: usize = SCREEN_SIZE_Y;
+pub const LOG_SIZE_X: usize = SCREEN_TILE_SIZE_X - GRID_SIZE_X;
+pub const LOG_SIZE_Y: usize = SCREEN_TILE_SIZE_Y;
 
 #[derive(Resource, Default)]
 pub struct Log {

@@ -6,11 +6,11 @@ use crate::{
     hands::Hands,
     player::Player,
     text::{AsciiText, SpawnText},
-    SCREEN_SIZE_Y, TILE_SIZE,
+    SCREEN_TILE_SIZE_Y, TILE_SIZE,
 };
 
 pub const STATUS_SIZE_X: usize = GRID_SIZE_X + 1;
-pub const STATUS_SIZE_Y: usize = SCREEN_SIZE_Y - GRID_SIZE_Y;
+pub const STATUS_SIZE_Y: usize = SCREEN_TILE_SIZE_Y - GRID_SIZE_Y;
 
 pub struct UpdateStatusBar;
 

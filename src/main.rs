@@ -11,34 +11,113 @@ mod text;
 mod usuable;
 pub mod wfc;
 
+use bevy::render::view::RenderLayers;
+use bevy::window::WindowResolution;
+use bevy_inspector_egui::bevy_egui::*;
+
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::KeyCode::P;
 use bevy::prelude::*;
+use bevy_inspector_egui::egui::style::{Spacing, WidgetVisuals, Widgets};
+use bevy_inspector_egui::egui::{Margin, Sense, Visuals};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_turborand::{DelegatedRng, GlobalRng, RngComponent};
-use graphics::{setup, update_sprites, GameSprite, Impassable, TintOverride};
+use graphics::{
+    camera_setup, setup, update_sprites, GameRender, GameSprite, Impassable, TintOverride,
+};
 use grid::{Grid, GridLocation, GridPlugin, LockToGrid, GRID_SIZE_X, GRID_SIZE_Y};
 use hands::{handle_give_item, GiveItem, Hands};
 use interactable::{
     player_interact, update_vending_machine_menu_graphics, vending_machine_menu, Interactable,
     VendingMachine,
 };
-use log::{lock_to_log, setup_log, Log};
+use log::{lock_to_log, setup_log, Log, LOG_SIZE_X};
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
 use player::{
     drop_active_hand, move_player, pickup_from_ground, pickup_menu, start_combination,
     update_active_hand, update_pickup_menu_graphics, use_active_hand, Player, PlayerCombined,
     PlayerInteract, PlayerTookTurn,
 };
-use status_bar::{setup_status_bar, StatusBar, UpdateStatusBar};
+use status_bar::{setup_status_bar, StatusBar, UpdateStatusBar, STATUS_SIZE_Y};
 use usuable::{use_lighter, use_lighter_on_cig, Lighter, PlayerUsed};
 use wfc::{wfc, WfcSettings};
 
-pub const SCREEN_SIZE_X: usize = 85;
-pub const SCREEN_SIZE_Y: usize = 48;
+pub const SCREEN_TILE_SIZE_X: usize = 85;
+pub const SCREEN_TILE_SIZE_Y: usize = 48;
 pub const TILE_SIZE: f32 = 9.0;
+pub const SCREEN_SIZE_X: f32 = SCREEN_TILE_SIZE_X as f32 * TILE_SIZE;
+pub const SCREEN_SIZE_Y: f32 = SCREEN_TILE_SIZE_Y as f32 * TILE_SIZE;
+
+fn egui_render_layer(
+    mut commands: Commands,
+    egui: Query<Entity, (With<EguiContext>, Without<RenderLayers>)>,
+) {
+    let second_pass = RenderLayers::layer(2);
+    for entity in &egui {
+        info!("Adding render layer");
+        commands.entity(entity).insert(second_pass);
+    }
+}
+fn newmenu(mut context: EguiContexts, game_render: Res<GameRender>) {
+    egui::Window::new("test").show(context.ctx_mut(), |ui| {});
+}
+
+fn menu(mut context: EguiContexts, game_render: Res<GameRender>) {
+    let game = context.image_id(&game_render.0).unwrap();
+    let side_size = LOG_SIZE_X as f32 * TILE_SIZE;
+    let screen_size = context.ctx_mut().screen_rect().max;
+    egui::CentralPanel::default().show(context.ctx_mut(), |ui| {
+        ui.style_mut().spacing = Spacing {
+            item_spacing: egui::Vec2::ZERO,
+            window_margin: Margin::ZERO,
+            menu_margin: Margin::ZERO,
+            indent: 0.0,
+            ..default()
+        };
+        let mut visuals = ui.style_mut().visuals.widgets.active.clone();
+        visuals.expansion = 00.0;
+
+        ui.style_mut().visuals = Visuals {
+            widgets: Widgets {
+                noninteractive: visuals.clone(),
+                inactive: visuals.clone(),
+                hovered: visuals.clone(),
+                active: visuals.clone(),
+                open: visuals.clone(),
+            },
+            ..default()
+        };
+        ui.allocate_rect(egui::Rect::ZERO, Sense::hover());
+        ui.image(egui::load::SizedTexture::new(
+            game,
+            egui::vec2(
+                screen_size.x - side_size,
+                screen_size.y - STATUS_SIZE_Y as f32 * TILE_SIZE,
+            ),
+        ));
+    });
+    egui::SidePanel::right("left_panel")
+        .exact_width(LOG_SIZE_X as f32 * TILE_SIZE)
+        .resizable(false)
+        .show(context.ctx_mut(), |ui| {
+            ui.label("Left resizeable panel");
+            ui.allocate_space(egui::Vec2::new(100.0, 999.));
+        })
+        .response
+        .rect
+        .width();
+    egui::TopBottomPanel::bottom("bottom")
+        .resizable(false)
+        .exact_height(STATUS_SIZE_Y as f32 * TILE_SIZE)
+        .show(context.ctx_mut(), |ui| {
+            ui.label("hello");
+        })
+        .response
+        .rect
+        .width();
+}
 
 fn main() {
     App::new()
@@ -47,6 +126,8 @@ fn main() {
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     primary_window: Some(Window {
+                        resizable: false,
+                        resolution: WindowResolution::new(SCREEN_SIZE_X, SCREEN_SIZE_Y),
                         // present_mode: bevy::window::PresentMode::Mailbox,
                         ..default()
                     }),
@@ -71,6 +152,7 @@ fn main() {
         .init_resource::<WfcSettings>()
         .register_type::<WfcSettings>()
         .add_systems(Startup, (spawn_player, setup, setup_log, setup_status_bar))
+        .add_systems(PreStartup, (camera_setup))
         .add_event::<PlayerTookTurn>()
         .add_event::<PlayerInteract>()
         .add_event::<GiveItem>()
@@ -92,18 +174,22 @@ fn main() {
             (
                 print_debug,
                 update_active_hand,
+                egui_render_layer,
                 handle_give_item,
                 pickup_from_ground,
                 use_lighter,
                 use_lighter_on_cig,
                 drop_active_hand,
                 start_combination,
+                newmenu,
+                menu,
                 move_player.run_if(not(menu_is_open())),
                 use_active_hand,
                 update_vending_machine_menu_graphics.run_if(on_event::<MenuRedraw>()),
                 update_pickup_menu_graphics.run_if(on_event::<MenuRedraw>()),
                 wfc,
-            ),
+            )
+                .chain(),
         )
         // XXX this is schedule abuse
         .add_systems(SpawnScene, lock_to_log)
