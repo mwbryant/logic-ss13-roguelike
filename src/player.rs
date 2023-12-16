@@ -7,7 +7,6 @@ use crate::{
     interactable::Interactable,
     log::AddToLog,
     menu::{CentralMenu, CloseMenu, MenuRedraw, OpenMenu},
-    status_bar::UpdateStatusBar,
     usuable::PlayerUsed,
     Item,
 };
@@ -67,7 +66,6 @@ pub fn move_player(
 }
 
 pub fn update_active_hand(
-    mut commands: Commands,
     mut player: Query<&mut Hands, With<Player>>,
     keyboard: Res<Input<KeyCode>>,
 ) {
@@ -75,7 +73,7 @@ pub fn update_active_hand(
         let Ok(mut hands) = player.get_single_mut() else {
             return;
         };
-        hands.swap_active(&mut commands);
+        hands.swap_active();
     }
 }
 
@@ -109,9 +107,8 @@ pub fn drop_active_hand(
                 player.combining = None;
             }
             commands.add(AddToLog("Dropping held item".to_string(), None));
-            commands.entity(entity).insert((LockToGrid, grid.clone()));
+            commands.entity(entity).insert((LockToGrid, grid.clone())).insert(Visibility::Inherited);
             hands.clear_active();
-            commands.add(UpdateStatusBar);
         }
     }
 }
@@ -130,7 +127,8 @@ pub fn pickup_from_ground(
             return;
         };
         if !hands.can_pickup() {
-            info!("test");
+            info!("Can't pickup");
+            commands.add(AddToLog("Can't pickup".to_string(), None));
             return;
         }
         if let Some(entities) = &grid[location] {

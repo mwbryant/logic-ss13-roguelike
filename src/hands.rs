@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{grid::GridLocation, player::Player, status_bar::UpdateStatusBar};
+use crate::{grid::GridLocation, player::Player};
 
 #[derive(Component, Debug, Default, Clone)]
 pub struct Hands {
@@ -28,8 +28,10 @@ pub fn handle_give_item(
                 return;
             }
             if items.contains(ev.item) {
-                commands.add(UpdateStatusBar);
-                commands.entity(ev.item).remove::<GridLocation>();
+                commands
+                    .entity(ev.item)
+                    .remove::<GridLocation>()
+                    .insert(Visibility::Hidden);
                 receiver.pickup(ev.item);
             }
         }
@@ -37,8 +39,7 @@ pub fn handle_give_item(
 }
 
 impl Hands {
-    pub fn swap_active(&mut self, commands: &mut Commands) {
-        commands.add(UpdateStatusBar);
+    pub fn swap_active(&mut self) {
         self.active = self.active.map(|index| (index + 1) % self.hands.len());
     }
 

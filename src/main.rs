@@ -19,7 +19,7 @@ use bevy_inspector_egui::bevy_egui::*;
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::KeyCode::P;
 use bevy::prelude::*;
-use bevy_inspector_egui::egui::style::{Spacing, WidgetVisuals, Widgets};
+use bevy_inspector_egui::egui::style::{Spacing, Widgets};
 use bevy_inspector_egui::egui::{Margin, Sense, Visuals};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
@@ -33,14 +33,14 @@ use interactable::{
     player_interact, update_vending_machine_menu_graphics, vending_machine_menu, Interactable,
     VendingMachine,
 };
-use log::{lock_to_log, setup_log, Log, LOG_SIZE_X};
+use log::{Log, LOG_SIZE_X};
 use menu::{menu_is_open, CentralMenuPlugin, MenuRedraw};
 use player::{
     drop_active_hand, move_player, pickup_from_ground, pickup_menu, start_combination,
     update_active_hand, update_pickup_menu_graphics, use_active_hand, Player, PlayerCombined,
     PlayerInteract, PlayerTookTurn,
 };
-use status_bar::{setup_status_bar, StatusBar, UpdateStatusBar, STATUS_SIZE_Y};
+use status_bar::STATUS_SIZE_Y;
 use usuable::{use_lighter, use_lighter_on_cig, Lighter, PlayerUsed};
 use wfc::{wfc, WfcSettings};
 
@@ -59,9 +59,6 @@ fn egui_render_layer(
         info!("Adding render layer");
         commands.entity(entity).insert(second_pass);
     }
-}
-fn newmenu(mut context: EguiContexts, game_render: Res<GameRender>) {
-    egui::Window::new("test").show(context.ctx_mut(), |ui| {});
 }
 
 fn menu(mut context: EguiContexts, game_render: Res<GameRender>) {
@@ -151,8 +148,8 @@ fn main() {
         // .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .init_resource::<WfcSettings>()
         .register_type::<WfcSettings>()
-        .add_systems(Startup, (spawn_player, setup, setup_log, setup_status_bar))
-        .add_systems(PreStartup, (camera_setup))
+        .add_systems(Startup, (spawn_player, setup))
+        .add_systems(PreStartup, camera_setup)
         .add_event::<PlayerTookTurn>()
         .add_event::<PlayerInteract>()
         .add_event::<GiveItem>()
@@ -160,7 +157,6 @@ fn main() {
         .add_event::<PlayerCombined>()
         .add_systems(PostUpdate, (update_sprites,))
         .init_resource::<Log>()
-        .init_resource::<StatusBar>()
         // please use schedules
         .add_systems(
             First,
@@ -181,7 +177,6 @@ fn main() {
                 use_lighter_on_cig,
                 drop_active_hand,
                 start_combination,
-                newmenu,
                 menu,
                 move_player.run_if(not(menu_is_open())),
                 use_active_hand,
@@ -191,8 +186,6 @@ fn main() {
             )
                 .chain(),
         )
-        // XXX this is schedule abuse
-        .add_systems(SpawnScene, lock_to_log)
         .add_systems(
             Update,
             (npc_wander, player_interact)
@@ -332,5 +325,4 @@ fn spawn_player(mut commands: Commands, mut global_rng: ResMut<GlobalRng>) {
             )
         })
     }));
-    commands.add(UpdateStatusBar);
 }

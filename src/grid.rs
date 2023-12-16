@@ -7,6 +7,7 @@ use std::{
 use bevy::{
     prelude::*,
     tasks::{AsyncComputeTaskPool, Task},
+    transform::TransformSystem,
 };
 use futures_lite::future;
 use pathfinding::undirected::connected_components;
@@ -73,10 +74,12 @@ impl<T: Component> Plugin for GridPlugin<T> {
             // TODO move_on_grid / GridLocation change detection
             .add_systems(Startup, first_dirty_event::<T>)
             .add_systems(
-                PreUpdate,
+                PostUpdate,
                 (
                     add_to_grid::<T>,
-                    lock_to_grid::<T>.after(update_in_grid::<T>),
+                    lock_to_grid::<T>
+                        .after(update_in_grid::<T>)
+                        .before(TransformSystem::TransformPropagate),
                     update_in_grid::<T>.after(add_to_grid::<T>),
                     remove_from_grid::<T>,
                     resolve_connected_components::<T>,

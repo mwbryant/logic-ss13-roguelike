@@ -13,8 +13,8 @@ use bevy::render::render_resource::{
 use bevy_inspector_egui::bevy_egui::EguiUserTextures;
 
 use crate::{
-    grid::GRID_SIZE_Y, SCREEN_SIZE_X, SCREEN_SIZE_Y, SCREEN_TILE_SIZE_X, SCREEN_TILE_SIZE_Y,
-    TILE_SIZE,
+    grid::{GRID_SIZE_X, GRID_SIZE_Y},
+    SCREEN_SIZE_X, SCREEN_SIZE_Y, SCREEN_TILE_SIZE_X, SCREEN_TILE_SIZE_Y, TILE_SIZE,
 };
 
 #[derive(Component, Default, Clone, Copy)]
@@ -240,9 +240,11 @@ pub fn camera_setup(
     mut images: ResMut<Assets<Image>>,
     mut egui_user_textures: ResMut<EguiUserTextures>,
 ) {
+    let width = GRID_SIZE_X as u32 * TILE_SIZE as u32;
+    let height = GRID_SIZE_Y as u32 * TILE_SIZE as u32;
     let size = Extent3d {
-        width: SCREEN_SIZE_X as u32,
-        height: SCREEN_SIZE_Y as u32,
+        width: width* 2,
+        height: height *2 ,
         ..default()
     };
 
@@ -273,9 +275,8 @@ pub fn camera_setup(
     // This specifies the layer used for the first pass, which will be attached to the first pass camera and cube.
     let first_pass_layer = RenderLayers::layer(1);
 
-    let center_x = (SCREEN_TILE_SIZE_X - 1) as f32 * TILE_SIZE / 2.0;
-    let center_y = (SCREEN_TILE_SIZE_Y - 1) as f32 * TILE_SIZE / 2.0
-        - (SCREEN_TILE_SIZE_Y - GRID_SIZE_Y) as f32 * TILE_SIZE;
+    let center_x = width as f32 / 2.0 - TILE_SIZE / 2.0;
+    let center_y = height as f32 / 2.0 - TILE_SIZE / 2.0 ;
 
     commands.spawn((
         Camera2dBundle {
@@ -290,8 +291,8 @@ pub fn camera_setup(
                 // Open bug with bevy, the ortho default is diff from 2d camera default
                 near: -1000.,
                 scaling_mode: ScalingMode::Fixed {
-                    width: 765.0,
-                    height: 432.0,
+                    width: width as f32,
+                    height: height as f32,
                 },
                 ..default()
             },
@@ -309,9 +310,6 @@ pub fn camera_setup(
         width: 765.0,
         height: 432.0,
     };
-    let center_x = (SCREEN_TILE_SIZE_X - 1) as f32 * TILE_SIZE / 2.0;
-    let center_y = (SCREEN_TILE_SIZE_Y - 1) as f32 * TILE_SIZE / 2.0
-        - (SCREEN_TILE_SIZE_Y - GRID_SIZE_Y) as f32 * TILE_SIZE;
     camera.transform = Transform::from_xyz(center_x, center_y, 0.0);
     commands.spawn(camera);
 }
