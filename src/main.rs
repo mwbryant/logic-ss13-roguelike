@@ -61,7 +61,7 @@ fn egui_render_layer(
     }
 }
 
-fn menu(mut context: EguiContexts, game_render: Res<GameRender>) {
+fn menu(mut context: EguiContexts, game_render: Res<GameRender>, log: Res<Log>) {
     let game = context.image_id(&game_render.0).unwrap();
     let side_size = LOG_SIZE_X as f32 * TILE_SIZE;
     let screen_size = context.ctx_mut().screen_rect().max;
@@ -99,8 +99,9 @@ fn menu(mut context: EguiContexts, game_render: Res<GameRender>) {
         .exact_width(LOG_SIZE_X as f32 * TILE_SIZE)
         .resizable(false)
         .show(context.ctx_mut(), |ui| {
-            ui.label("Left resizeable panel");
-            ui.allocate_space(egui::Vec2::new(100.0, 999.));
+            for entry in &log.entries {
+                ui.label(entry);
+            }
         })
         .response
         .rect

@@ -7,7 +7,7 @@ pub const LOG_SIZE_Y: usize = SCREEN_TILE_SIZE_Y;
 
 #[derive(Resource, Default)]
 pub struct Log {
-    entries: Vec<String>,
+    pub entries: Vec<String>,
 }
 
 pub struct AddToLog(pub String, pub Option<TintOverride>);
